@@ -575,7 +575,7 @@ dependencies = [
 [[package]]
 name = "ipc-server"
 version = "0.1.0"
-source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#8dc42e9d4ade89dc60b9d11d14b5d65a6c91e4e3"
+source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#4f0e0e55f534f70af7731498d7f9229f57128908"
 dependencies = [
  "async-trait",
  "chrono",

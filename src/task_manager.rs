@@ -1,0 +1,37 @@
+use std::collections::HashMap;
+
+use tokio::{sync::mpsc::UnboundedReceiver, task::JoinHandle};
+
+pub enum TaskMessage {
+    AddTask(String, JoinHandle<()>),
+    AbortTask(String),
+}
+
+pub struct TaskManager {
+    rx: UnboundedReceiver<TaskMessage>,
+}
+
+impl TaskManager {
+    pub fn new(rx: UnboundedReceiver<TaskMessage>) -> Self {
+        Self { rx }
+    }
+    pub async fn run(&mut self) {
+        let mut task_list = HashMap::<String, JoinHandle<()>>::new();
+        loop {
+            tokio::select! {
+                    Some(msg) = self.rx.recv() => {
+                    match msg {
+                        TaskMessage::AddTask(key, value) => {
+                            task_list.insert(key, value);
+                        }
+                        TaskMessage::AbortTask(key) => {
+                            if let Some(task) = task_list.remove(&key) {
+                                task.abort();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

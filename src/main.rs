@@ -1,5 +1,9 @@
+#[allow(dead_code)]
 mod oauth2;
+#[allow(dead_code)]
 mod shared_object;
+#[allow(dead_code)]
+mod task_manager;
 
 use std::io::Write;
 use std::str::FromStr;
@@ -11,6 +15,8 @@ use log::LevelFilter;
 use oauth2::error::OAuth2Result;
 
 use shared_object::DeviceCodeFlowObject;
+use task_manager::TaskManager;
+use tokio::sync::mpsc::unbounded_channel;
 
 fn init_logger(level: &str) {
     let mut log_builder = env_logger::Builder::new();
@@ -41,6 +47,8 @@ fn init_logger(level: &str) {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OAuth2Result<()> {
     init_logger("trace");
+    let (_tx, rx) = unbounded_channel();
+
     let mut shared = ObjectDispatcher::new().await.unwrap();
 
     shared
@@ -49,5 +57,9 @@ async fn main() -> OAuth2Result<()> {
         .unwrap();
 
     let _r = shared.spawn().await;
+
+    let mut task = TaskManager::new(rx);
+
+    task.run().await;
     Ok(())
 }

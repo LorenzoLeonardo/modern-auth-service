@@ -18,6 +18,8 @@ use oauth2::{
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 
+use ipc_client::client::message::JsonValue;
+
 // My crates
 use crate::oauth2::token_keeper::TokenKeeper;
 use crate::oauth2::{
@@ -260,14 +262,14 @@ pub struct DeviceCodeFlowParam {
     scopes: Vec<String>,
 }
 
-impl TryFrom<HashMap<String, String>> for DeviceCodeFlowParam {
+impl TryFrom<HashMap<String, JsonValue>> for DeviceCodeFlowParam {
     type Error = OAuth2Error;
 
-    fn try_from(value: HashMap<String, String>) -> Result<Self, Self::Error> {
+    fn try_from(value: HashMap<String, JsonValue>) -> Result<Self, Self::Error> {
         #[derive(Serialize, Deserialize)]
         #[serde(transparent)]
         struct MyData {
-            value: HashMap<String, String>,
+            value: HashMap<String, JsonValue>,
         }
         let value = MyData { value };
         let value = serde_json::to_vec(&value)?;

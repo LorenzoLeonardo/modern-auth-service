@@ -9,7 +9,6 @@ use ipc_client::client::{
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::interface::Interface;
-use crate::oauth2::curl::Curl;
 use crate::oauth2::{
     device_code_flow::{self, DeviceCodeFlowParam},
     error::{ErrorCodes, OAuth2Error},
@@ -21,7 +20,6 @@ where
     I: Interface + Send + Sync + 'static,
 {
     interface: I,
-    curl: Curl,
     tx: UnboundedSender<TaskMessage>,
 }
 
@@ -29,12 +27,8 @@ impl<I> DeviceCodeFlowObject<I>
 where
     I: Interface + Send + Sync + 'static,
 {
-    pub fn new(interface: I, curl: Curl, tx: UnboundedSender<TaskMessage>) -> Self {
-        Self {
-            interface,
-            curl,
-            tx,
-        }
+    pub fn new(interface: I, tx: UnboundedSender<TaskMessage>) -> Self {
+        Self { interface, tx }
     }
 }
 
@@ -57,7 +51,6 @@ where
                         let result = device_code_flow::login(
                             DeviceCodeFlowParam::try_from(param)?,
                             self.interface.clone(),
-                            self.curl.clone(),
                             self.tx.clone(),
                         )
                         .await?;
@@ -76,6 +69,23 @@ where
                         let result = device_code_flow::cancel(
                             DeviceCodeFlowParam::try_from(param)?,
                             self.tx.clone(),
+                        )
+                        .await?;
+                        Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
+                            result.as_str(),
+                        )))
+                    } else {
+                        Err(OAuth2Error::new(
+                            ErrorCodes::InvalidParameters,
+                            String::from("No parameter"),
+                        ))
+                    }
+                }
+                "requestToken" => {
+                    if let Some(param) = param {
+                        let result = device_code_flow::request_token(
+                            DeviceCodeFlowParam::try_from(param)?,
+                            self.interface.clone(),
                         )
                         .await?;
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(

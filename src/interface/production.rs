@@ -1,16 +1,19 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use curl_http_client::error::Error;
 use directories::UserDirs;
+use oauth2::{HttpRequest, HttpResponse};
 
 use crate::oauth2::error::{ErrorCodes, OAuth2Error};
 
-use super::Interface;
+use super::{curl::Curl, Interface};
 
 #[derive(Clone)]
 pub struct Production {
     token_directory: PathBuf,
     provider_directory: PathBuf,
+    curl: Curl,
 }
 
 #[async_trait]
@@ -21,6 +24,10 @@ impl Interface for Production {
 
     fn provider_directory(&self) -> PathBuf {
         self.provider_directory.clone()
+    }
+
+    async fn http_request(&self, request: HttpRequest) -> Result<HttpResponse, Error> {
+        self.curl.send(request).await
     }
 }
 
@@ -56,6 +63,7 @@ impl Production {
         Ok(Self {
             token_directory,
             provider_directory,
+            curl: Curl::new(),
         })
     }
 }

@@ -12,8 +12,8 @@ use directories::UserDirs;
 use oauth2::{
     basic::{BasicClient, BasicTokenType},
     devicecode::StandardDeviceAuthorizationResponse,
-    AccessToken, AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, EmptyExtraTokenFields,
-    HttpRequest, HttpResponse, Scope, StandardTokenResponse, TokenUrl,
+    AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, EmptyExtraTokenFields, HttpRequest,
+    HttpResponse, Scope, StandardTokenResponse, TokenUrl,
 };
 
 use ipc_client::client::message::JsonValue;
@@ -26,10 +26,7 @@ use crate::{
     oauth2::{provider::Provider, token_keeper::TokenKeeper},
 };
 use crate::{
-    oauth2::{
-        curl::Curl,
-        error::{ErrorCodes, OAuth2Error, OAuth2Result},
-    },
+    oauth2::error::{ErrorCodes, OAuth2Error, OAuth2Result},
     task_manager::TaskMessage,
 };
 
@@ -201,66 +198,6 @@ impl DeviceCodeFlow {
     }
 }
 
-pub async fn device_code_flow(
-    client_id: &str,
-    client_secret: Option<ClientSecret>,
-    device_auth_endpoint: DeviceAuthorizationUrl,
-    token_endpoint: TokenUrl,
-    scopes: Vec<Scope>,
-    curl: Curl,
-) -> OAuth2Result<AccessToken> {
-    let oauth2_cloud = DeviceCodeFlow::new(
-        ClientId::new(client_id.to_string()),
-        client_secret,
-        device_auth_endpoint,
-        token_endpoint,
-    );
-
-    let directory = UserDirs::new().ok_or(OAuth2Error::new(
-        ErrorCodes::DirectoryError,
-        "No valid directory".to_string(),
-    ))?;
-    let mut directory = directory.home_dir().to_owned();
-
-    directory = directory.join("token");
-
-    let token_file = PathBuf::from(format!("{}_device_code_flow.json", client_id));
-    let mut token_keeper = TokenKeeper::new(directory.to_path_buf());
-
-    // If there is no exsting token, get it from the cloud
-    if let Err(_err) = token_keeper.read(&token_file) {
-        let device_auth_response = oauth2_cloud
-            .request_device_code(scopes, |request| async { curl.send(request).await })
-            .await?;
-
-        log::info!(
-            "Login Here: {}",
-            &device_auth_response.verification_uri().as_str(),
-        );
-        log::info!(
-            "Device Code: {}",
-            &device_auth_response.user_code().secret()
-        );
-
-        let token = oauth2_cloud
-            .poll_access_token(device_auth_response, |request| async {
-                curl.send(request).await
-            })
-            .await?;
-        token_keeper = TokenKeeper::from(token);
-        token_keeper.set_directory(directory.to_path_buf());
-
-        token_keeper.save(&token_file)?;
-    } else {
-        token_keeper = oauth2_cloud
-            .get_access_token(&directory, &token_file, |request| async {
-                curl.send(request).await
-            })
-            .await?;
-    }
-    Ok(token_keeper.access_token)
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeviceCodeFlowParam {
     process: String,
@@ -303,16 +240,12 @@ fn make_token_dir() -> Result<PathBuf, OAuth2Error> {
 }
 
 fn make_filename(param: &DeviceCodeFlowParam) -> PathBuf {
-    let name = format!("{}", param.to_string());
-    let path = PathBuf::from(name);
-
-    path
+    PathBuf::from(param.to_string())
 }
 
 pub async fn login<I>(
     param: DeviceCodeFlowParam,
     interface: I,
-    curl: Curl,
     tx: UnboundedSender<TaskMessage>,
 ) -> Result<String, OAuth2Error>
 where
@@ -345,7 +278,9 @@ where
         .collect();
 
     let device_auth_response = device_code_flow
-        .request_device_code(scope_vec, |request| async { curl.send(request).await })
+        .request_device_code(scope_vec, |request| async {
+            interface.http_request(request).await
+        })
         .await?;
 
     let result = serde_json::to_string(&device_auth_response)?;
@@ -354,7 +289,7 @@ where
     let handle = tokio::spawn(async move {
         let token = device_code_flow
             .poll_access_token(device_auth_response, |request| async {
-                curl.send(request).await
+                interface.http_request(request).await
             })
             .await
             .unwrap();
@@ -376,4 +311,40 @@ pub async fn cancel(
     let token_file = make_filename(&param);
     tx.send(TaskMessage::AbortTask(token_file))?;
     Ok("OK".to_string())
+}
+
+pub async fn request_token<I>(
+    param: DeviceCodeFlowParam,
+    interface: I,
+) -> Result<String, OAuth2Error>
+where
+    I: Interface + Send + Sync + 'static + Clone,
+{
+    log::trace!("Request Token Method(): {:?}", param);
+
+    let provider_dir = interface.provider_directory();
+    let token_dir = interface.token_directory();
+    let token_file = make_filename(&param);
+    let provider = Provider::read(
+        provider_dir.as_path(),
+        &PathBuf::from(param.provider.as_str()),
+    )?;
+
+    log::trace!("Token Directory: {:?}", token_dir);
+    log::trace!("Token File: {:?}", token_file);
+    let device_code_flow = DeviceCodeFlow::new(
+        provider.client_id,
+        provider.client_secret,
+        provider.device_auth_endpoint,
+        provider.token_endpoint,
+    );
+
+    let token_keeper = device_code_flow
+        .get_access_token(&token_dir, &token_file, |request| async {
+            interface.http_request(request).await
+        })
+        .await?;
+
+    let result = serde_json::to_string(&token_keeper)?;
+    Ok(result)
 }

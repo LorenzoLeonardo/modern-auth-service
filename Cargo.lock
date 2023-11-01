@@ -575,7 +575,7 @@ dependencies = [
 [[package]]
 name = "ipc-server"
 version = "0.1.0"
-source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#66f91ee555ceb9a5dcf56f90e0869db2e155dc84"
+source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#c687f24af797bdf279cc3ab4c399d05ae7faa2db"
 dependencies = [
  "async-trait",
  "chrono",
@@ -709,6 +709,7 @@ dependencies = [
  "log",
  "oauth2",
  "serde",
+ "serde_derive",
  "serde_json",
  "strum",
  "strum_macros",

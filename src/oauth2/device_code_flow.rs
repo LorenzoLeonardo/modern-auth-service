@@ -1,5 +1,6 @@
 // Standard libraries
 use std::{
+    collections::HashMap,
     future::Future,
     path::{Path, PathBuf},
 };
@@ -13,6 +14,9 @@ use oauth2::{
     AccessToken, AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, EmptyExtraTokenFields,
     HttpRequest, HttpResponse, Scope, StandardTokenResponse, TokenUrl,
 };
+
+use serde_derive::Deserialize;
+use serde_derive::Serialize;
 
 // My crates
 use crate::oauth2::token_keeper::TokenKeeper;
@@ -247,4 +251,31 @@ pub async fn device_code_flow(
             .await?;
     }
     Ok(token_keeper.access_token)
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DeviceCodeFlowParam {
+    process: String,
+    provider: String,
+    scopes: Vec<String>,
+}
+
+impl TryFrom<HashMap<String, String>> for DeviceCodeFlowParam {
+    type Error = OAuth2Error;
+
+    fn try_from(value: HashMap<String, String>) -> Result<Self, Self::Error> {
+        #[derive(Serialize, Deserialize)]
+        #[serde(transparent)]
+        struct MyData {
+            value: HashMap<String, String>,
+        }
+        let value = MyData { value };
+        let value = serde_json::to_vec(&value)?;
+        let value: DeviceCodeFlowParam = serde_json::from_slice(value.as_slice())?;
+        Ok(value)
+    }
+}
+
+pub async fn login(param: DeviceCodeFlowParam) {
+    log::trace!("Login Method(): {:?}", param);
 }

@@ -1,6 +1,7 @@
 // Standard libraries
 use std::{
     collections::HashMap,
+    fmt::Display,
     future::Future,
     path::{Path, PathBuf},
 };
@@ -267,6 +268,12 @@ pub struct DeviceCodeFlowParam {
     scopes: Vec<String>,
 }
 
+impl Display for DeviceCodeFlowParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.process, self.provider)
+    }
+}
+
 impl TryFrom<HashMap<String, JsonValue>> for DeviceCodeFlowParam {
     type Error = OAuth2Error;
 
@@ -296,9 +303,8 @@ fn make_token_dir() -> Result<PathBuf, OAuth2Error> {
 }
 
 fn make_filename(param: &DeviceCodeFlowParam) -> PathBuf {
-    let mut path = PathBuf::from(param.process.as_str());
-
-    path = path.join(param.provider.as_str());
+    let name = format!("{}", param.to_string());
+    let path = PathBuf::from(name);
 
     path
 }
@@ -321,6 +327,9 @@ where
         provider_dir.as_path(),
         &PathBuf::from(param.provider.as_str()),
     )?;
+
+    log::trace!("Token Directory: {:?}", token_dir);
+    log::trace!("Token File: {:?}", token_file);
 
     let device_code_flow = DeviceCodeFlow::new(
         provider.client_id,

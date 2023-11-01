@@ -1,5 +1,5 @@
-mod curl;
+pub mod curl;
 pub mod device_code_flow;
 pub mod error;
-mod provider;
-mod token_keeper;
+pub mod provider;
+pub mod token_keeper;

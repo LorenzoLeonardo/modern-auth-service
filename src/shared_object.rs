@@ -6,16 +6,43 @@ use ipc_client::client::{
     message::{CallObjectResponse, Error, OutgoingMessage},
     shared_object::SharedObject,
 };
+use tokio::sync::mpsc::UnboundedSender;
 
+use crate::interface::Interface;
+use crate::oauth2::curl::Curl;
 use crate::oauth2::{
     device_code_flow::{self, DeviceCodeFlowParam},
     error::{ErrorCodes, OAuth2Error},
 };
+use crate::task_manager::TaskMessage;
 
-pub struct DeviceCodeFlowObject;
+pub struct DeviceCodeFlowObject<I>
+where
+    I: Interface + Send + Sync + 'static,
+{
+    interface: I,
+    curl: Curl,
+    tx: UnboundedSender<TaskMessage>,
+}
+
+impl<I> DeviceCodeFlowObject<I>
+where
+    I: Interface + Send + Sync + 'static,
+{
+    pub fn new(interface: I, curl: Curl, tx: UnboundedSender<TaskMessage>) -> Self {
+        Self {
+            interface,
+            curl,
+            tx,
+        }
+    }
+}
 
 #[async_trait]
-impl SharedObject for DeviceCodeFlowObject {
+impl<I> SharedObject for DeviceCodeFlowObject<I>
+where
+    I: Interface + Send + Sync + 'static + Clone,
+{
     async fn remote_call(
         &self,
         method: &str,
@@ -27,10 +54,15 @@ impl SharedObject for DeviceCodeFlowObject {
             match method {
                 "login" => {
                     if let Some(param) = param {
-                        let _ =
-                            device_code_flow::login(DeviceCodeFlowParam::try_from(param)?).await;
+                        let result = device_code_flow::login(
+                            DeviceCodeFlowParam::try_from(param)?,
+                            self.interface.clone(),
+                            self.curl.clone(),
+                            self.tx.clone(),
+                        )
+                        .await?;
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            "This is my response from mango",
+                            result.as_str(),
                         )))
                     } else {
                         Err(OAuth2Error::new(

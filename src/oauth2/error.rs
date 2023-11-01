@@ -1,5 +1,5 @@
 // Standard libraries
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::{error::Error, str::FromStr};
 
 use http::header::InvalidHeaderValue;
@@ -9,9 +9,9 @@ use oauth2::{
     url, ConfigurationError, ErrorResponseType, RequestTokenError, StandardErrorResponse,
 };
 use serde::{Deserialize, Serialize};
-use strum_macros::EnumString;
+use strum_macros::{AsRefStr, EnumString};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, EnumString)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, EnumString, AsRefStr)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ErrorCodes {
@@ -140,6 +140,14 @@ impl From<curl_http_client::error::Error> for OAuth2Error {
 impl From<InvalidHeaderValue> for OAuth2Error {
     fn from(e: InvalidHeaderValue) -> Self {
         OAuth2Error::new(ErrorCodes::HttpError, e.to_string())
+    }
+}
+
+impl std::error::Error for OAuth2Error {}
+
+impl Display for OAuth2Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.error_code.as_ref(), self.error_code_desc)
     }
 }
 

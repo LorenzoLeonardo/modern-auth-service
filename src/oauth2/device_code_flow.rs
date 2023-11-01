@@ -17,12 +17,19 @@ use oauth2::{
 
 use ipc_client::client::message::JsonValue;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::UnboundedSender;
 
 // My crates
-use crate::oauth2::token_keeper::TokenKeeper;
-use crate::oauth2::{
-    curl::Curl,
-    error::{ErrorCodes, OAuth2Error, OAuth2Result},
+use crate::{
+    interface::Interface,
+    oauth2::{provider::Provider, token_keeper::TokenKeeper},
+};
+use crate::{
+    oauth2::{
+        curl::Curl,
+        error::{ErrorCodes, OAuth2Error, OAuth2Result},
+    },
+    task_manager::TaskMessage,
 };
 
 #[async_trait]
@@ -296,8 +303,59 @@ fn make_filename(param: &DeviceCodeFlowParam) -> PathBuf {
     path
 }
 
-pub async fn login(param: DeviceCodeFlowParam) -> Result<(), OAuth2Error> {
+pub async fn login<I>(
+    param: DeviceCodeFlowParam,
+    interface: I,
+    curl: Curl,
+    tx: UnboundedSender<TaskMessage>,
+) -> Result<String, OAuth2Error>
+where
+    I: Interface + Send + Sync + 'static + Clone,
+{
     log::trace!("Login Method(): {:?}", param);
 
-    Ok(())
+    let provider_dir = interface.provider_directory();
+    let token_dir = interface.token_directory();
+    let token_file = make_filename(&param);
+    let provider = Provider::read(
+        provider_dir.as_path(),
+        &PathBuf::from(param.provider.as_str()),
+    )?;
+
+    let device_code_flow = DeviceCodeFlow::new(
+        provider.client_id,
+        provider.client_secret,
+        provider.device_auth_endpoint,
+        provider.token_endpoint,
+    );
+
+    let scope_vec: Vec<Scope> = param
+        .scopes
+        .iter()
+        .filter_map(|s| Some(Scope::new(s.to_string())))
+        .collect();
+
+    let device_auth_response = device_code_flow
+        .request_device_code(scope_vec, |request| async { curl.send(request).await })
+        .await?;
+
+    let result = serde_json::to_string(&device_auth_response)?;
+    let token_file_clone = token_file.clone();
+    // Start polling at the background
+    let handle = tokio::spawn(async move {
+        let token = device_code_flow
+            .poll_access_token(device_auth_response, |request| async {
+                curl.send(request).await
+            })
+            .await
+            .unwrap();
+        let mut token_keeper = TokenKeeper::from(token);
+        token_keeper.set_directory(token_dir);
+
+        token_keeper.save(&token_file_clone).unwrap();
+    });
+    // Send this polling task to the background
+    tx.send(TaskMessage::AddTask(token_file, handle)).unwrap();
+
+    Ok(result)
 }

@@ -1,3 +1,4 @@
+mod interface;
 #[allow(dead_code)]
 mod oauth2;
 #[allow(dead_code)]
@@ -9,9 +10,11 @@ use std::io::Write;
 use std::str::FromStr;
 
 use chrono::Local;
+use interface::production::Production;
 use ipc_client::client::shared_object::ObjectDispatcher;
 
 use log::LevelFilter;
+use oauth2::curl::Curl;
 use oauth2::error::OAuth2Result;
 
 use shared_object::DeviceCodeFlowObject;
@@ -47,12 +50,15 @@ fn init_logger(level: &str) {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OAuth2Result<()> {
     init_logger("trace");
-    let (_tx, rx) = unbounded_channel();
+    let (tx, rx) = unbounded_channel();
 
     let mut shared = ObjectDispatcher::new().await.unwrap();
+    let interface = Production::new()?;
+    let curl = Curl::new();
+    let object = DeviceCodeFlowObject::new(interface, curl, tx);
 
     shared
-        .register_object("oauth2.device.code.flow", Box::new(DeviceCodeFlowObject))
+        .register_object("oauth2.device.code.flow", Box::new(object))
         .await
         .unwrap();
 

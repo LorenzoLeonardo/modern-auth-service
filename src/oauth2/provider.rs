@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use oauth2::{url::Url, AuthUrl, DeviceAuthorizationUrl, Scope, TokenUrl};
+use oauth2::{url::Url, AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, Scope, TokenUrl};
 use serde::{Deserialize, Serialize};
 
-use crate::oauth2::error::{ErrorCodes, OAuth2Error, OAuth2Result};
+use crate::oauth2::error::OAuth2Result;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Default)]
 pub struct SmtpHostName(pub String);
@@ -23,6 +23,9 @@ pub struct Provider {
     pub smtp_server: SmtpHostName,
     pub smtp_server_port: SmtpPort,
     pub profile_endpoint: ProfileUrl,
+    pub client_id: ClientId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_secret: Option<ClientSecret>,
 }
 
 impl Provider {
@@ -30,34 +33,5 @@ impl Provider {
         let input_path = directory.join(file_name);
         let text = std::fs::read_to_string(input_path)?;
         Ok(serde_json::from_str::<Self>(&text)?)
-    }
-
-    pub fn get_provider(source: &str) -> OAuth2Result<Provider> {
-        let provider_directory = std::env::current_exe()?
-            .parent()
-            .ok_or(OAuth2Error::new(
-                ErrorCodes::DirectoryError,
-                "No valid directory".to_string(),
-            ))?
-            .parent()
-            .ok_or(OAuth2Error::new(
-                ErrorCodes::DirectoryError,
-                "No valid directory".to_string(),
-            ))?
-            .parent()
-            .ok_or(OAuth2Error::new(
-                ErrorCodes::DirectoryError,
-                "No valid directory".to_string(),
-            ))?
-            .to_path_buf();
-        let provider_directory = provider_directory.join(PathBuf::from("endpoints"));
-        let provider = Provider::read(&provider_directory, &PathBuf::from(source));
-        match provider {
-            Ok(provider) => Ok(provider),
-            Err(_err) => {
-                let provider = Provider::read(&PathBuf::from("endpoints"), &PathBuf::from(source))?;
-                Ok(provider)
-            }
-        }
     }
 }

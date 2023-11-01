@@ -276,6 +276,28 @@ impl TryFrom<HashMap<String, JsonValue>> for DeviceCodeFlowParam {
     }
 }
 
-pub async fn login(param: DeviceCodeFlowParam) {
+fn make_token_dir() -> Result<PathBuf, OAuth2Error> {
+    let directory = UserDirs::new().ok_or(OAuth2Error::new(
+        ErrorCodes::DirectoryError,
+        "No valid directory".to_string(),
+    ))?;
+    let mut directory = directory.home_dir().to_owned();
+
+    directory = directory.join("token");
+
+    Ok(directory)
+}
+
+fn make_filename(param: &DeviceCodeFlowParam) -> PathBuf {
+    let mut path = PathBuf::from(param.process.as_str());
+
+    path = path.join(param.provider.as_str());
+
+    path
+}
+
+pub async fn login(param: DeviceCodeFlowParam) -> Result<(), OAuth2Error> {
     log::trace!("Login Method(): {:?}", param);
+
+    Ok(())
 }

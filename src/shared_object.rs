@@ -27,7 +27,8 @@ impl SharedObject for DeviceCodeFlowObject {
             match method {
                 "login" => {
                     if let Some(param) = param {
-                        device_code_flow::login(DeviceCodeFlowParam::try_from(param)?).await;
+                        let _ =
+                            device_code_flow::login(DeviceCodeFlowParam::try_from(param)?).await;
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
                             "This is my response from mango",
                         )))

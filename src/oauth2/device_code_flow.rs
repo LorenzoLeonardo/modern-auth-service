@@ -15,10 +15,8 @@ use oauth2::{
     HttpRequest, HttpResponse, Scope, StandardTokenResponse, TokenUrl,
 };
 
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
-
 use ipc_client::client::message::JsonValue;
+use serde::{Deserialize, Serialize};
 
 // My crates
 use crate::oauth2::token_keeper::TokenKeeper;

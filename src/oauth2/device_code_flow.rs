@@ -332,7 +332,7 @@ where
     let scope_vec: Vec<Scope> = param
         .scopes
         .iter()
-        .filter_map(|s| Some(Scope::new(s.to_string())))
+        .map(|s| Scope::new(s.to_string()))
         .collect();
 
     let device_auth_response = device_code_flow
@@ -358,4 +358,13 @@ where
     tx.send(TaskMessage::AddTask(token_file, handle)).unwrap();
 
     Ok(result)
+}
+
+pub async fn cancel(
+    param: DeviceCodeFlowParam,
+    tx: UnboundedSender<TaskMessage>,
+) -> Result<String, OAuth2Error> {
+    let token_file = make_filename(&param);
+    tx.send(TaskMessage::AbortTask(token_file))?;
+    Ok("OK".to_string())
 }

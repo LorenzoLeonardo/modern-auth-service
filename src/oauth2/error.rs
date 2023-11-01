@@ -10,6 +10,9 @@ use oauth2::{
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString};
+use tokio::sync::mpsc::error::SendError;
+
+use crate::task_manager::TaskMessage;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, EnumString, AsRefStr)]
 #[serde(rename_all = "snake_case")]
@@ -47,6 +50,7 @@ pub enum ErrorCodes {
     DirectoryError,
     HttpError,
     CurlError,
+    ChannelError,
     OtherError,
 }
 
@@ -143,6 +147,11 @@ impl From<InvalidHeaderValue> for OAuth2Error {
     }
 }
 
+impl From<SendError<TaskMessage>> for OAuth2Error {
+    fn from(e: SendError<TaskMessage>) -> Self {
+        OAuth2Error::new(ErrorCodes::ChannelError, e.to_string())
+    }
+}
 impl std::error::Error for OAuth2Error {}
 
 impl Display for OAuth2Error {

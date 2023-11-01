@@ -71,6 +71,23 @@ where
                         ))
                     }
                 }
+                "cancel" => {
+                    if let Some(param) = param {
+                        let result = device_code_flow::cancel(
+                            DeviceCodeFlowParam::try_from(param)?,
+                            self.tx.clone(),
+                        )
+                        .await?;
+                        Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
+                            result.as_str(),
+                        )))
+                    } else {
+                        Err(OAuth2Error::new(
+                            ErrorCodes::InvalidParameters,
+                            String::from("No parameter"),
+                        ))
+                    }
+                }
                 _ => todo!(),
             }
         }

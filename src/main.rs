@@ -7,7 +7,6 @@ mod shared_object;
 mod task_manager;
 
 use std::io::Write;
-use std::str::FromStr;
 
 use chrono::Local;
 use interface::production::Production;
@@ -20,27 +19,21 @@ use shared_object::DeviceCodeFlowObject;
 use task_manager::TaskManager;
 use tokio::sync::mpsc::unbounded_channel;
 
-fn init_logger(level: &str) {
+fn init_logger(level: LevelFilter) {
     let mut log_builder = env_logger::Builder::new();
     log_builder.format(|buf, record| {
-        let mut module = "";
-        if let Some(path) = record.module_path() {
-            if let Some(split) = path.split("::").last() {
-                module = split;
-            }
-        }
-
         writeln!(
             buf,
-            "{}[{}]:{}: {}",
-            Local::now().format("[%d-%m-%Y %H:%M:%S]"),
+            "{}[{}:{}][{}]: {}",
+            Local::now().format("[%H:%M:%S%.9f]"),
+            record.target(),
+            record.line().unwrap_or_default(),
             record.level(),
-            module,
             record.args()
         )
     });
 
-    log_builder.filter_level(LevelFilter::from_str(level).unwrap_or(LevelFilter::Info));
+    log_builder.filter_level(level);
     if let Err(e) = log_builder.try_init() {
         log::error!("{:?}", e);
     }
@@ -48,7 +41,7 @@ fn init_logger(level: &str) {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OAuth2Result<()> {
-    init_logger("trace");
+    init_logger(LevelFilter::Trace);
     let (tx, rx) = unbounded_channel();
 
     let mut shared = ObjectDispatcher::new().await.unwrap();

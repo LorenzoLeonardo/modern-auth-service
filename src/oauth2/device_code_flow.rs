@@ -367,6 +367,7 @@ where
 mod tests {
     use std::{path::PathBuf, str::FromStr};
 
+    use log::LevelFilter;
     use oauth2::{url::Url, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl};
     use tokio::sync::mpsc::unbounded_channel;
 
@@ -408,7 +409,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_login() {
-        init_logger("trace");
+        init_logger(LevelFilter::Trace);
         let (tx, _rx) = unbounded_channel();
         let param = DeviceCodeFlowParam::new("mock_process".into(), "Microsoft".into(), Vec::new());
         let provider_file = PathBuf::from_str(param.provider.as_str()).unwrap();

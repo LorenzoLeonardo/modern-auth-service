@@ -5,16 +5,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::oauth2::error::OAuth2Result;
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Default)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Default, Clone)]
 pub struct SmtpHostName(pub String);
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct SmtpPort(pub u16);
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProfileUrl(pub Url);
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Provider {
     pub authorization_endpoint: AuthUrl,
     pub token_endpoint: TokenUrl,

@@ -205,6 +205,16 @@ pub struct DeviceCodeFlowParam {
     scopes: Vec<String>,
 }
 
+impl DeviceCodeFlowParam {
+    pub fn new(process: String, provider: String, scopes: Vec<String>) -> Self {
+        Self {
+            process,
+            provider,
+            scopes,
+        }
+    }
+}
+
 impl Display for DeviceCodeFlowParam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", self.process, self.provider)
@@ -256,13 +266,15 @@ where
     let provider_dir = interface.provider_directory();
     let token_dir = interface.token_directory();
     let token_file = make_filename(&param);
+
+    log::trace!("Provider Directory: {:?}", provider_dir);
+    log::trace!("Token Directory: {:?}", token_dir);
+    log::trace!("Token File: {:?}", token_file);
+
     let provider = Provider::read(
         provider_dir.as_path(),
         &PathBuf::from(param.provider.as_str()),
     )?;
-
-    log::trace!("Token Directory: {:?}", token_dir);
-    log::trace!("Token File: {:?}", token_file);
 
     let device_code_flow = DeviceCodeFlow::new(
         provider.client_id,
@@ -325,13 +337,16 @@ where
     let provider_dir = interface.provider_directory();
     let token_dir = interface.token_directory();
     let token_file = make_filename(&param);
+
+    log::trace!("Provider Directory: {:?}", provider_dir);
+    log::trace!("Token Directory: {:?}", token_dir);
+    log::trace!("Token File: {:?}", token_file);
+
     let provider = Provider::read(
         provider_dir.as_path(),
         &PathBuf::from(param.provider.as_str()),
     )?;
 
-    log::trace!("Token Directory: {:?}", token_dir);
-    log::trace!("Token File: {:?}", token_file);
     let device_code_flow = DeviceCodeFlow::new(
         provider.client_id,
         provider.client_secret,
@@ -346,4 +361,61 @@ where
         .await?;
 
     Ok(token_keeper)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{path::PathBuf, str::FromStr};
+
+    use oauth2::{url::Url, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl};
+    use tokio::sync::mpsc::unbounded_channel;
+
+    use crate::{
+        init_logger,
+        interface::mock::Mock,
+        oauth2::provider::{ProfileUrl, Provider, SmtpHostName, SmtpPort},
+    };
+
+    use super::{login, DeviceCodeFlowParam};
+
+    fn build_mock_provider() -> Provider {
+        Provider {
+            authorization_endpoint: AuthUrl::from_url(
+                Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/authorize")
+                    .unwrap(),
+            ),
+            token_endpoint: TokenUrl::from_url(
+                Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/token").unwrap(),
+            ),
+            device_auth_endpoint: DeviceAuthorizationUrl::from_url(
+                Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/devicecode")
+                    .unwrap(),
+            ),
+            scopes: vec![
+                Scope::new("offline_access".into()),
+                Scope::new("https://outlook.office.com/SMTP.Send".into()),
+                Scope::new("https://outlook.office.com/User.Read".into()),
+            ],
+            smtp_server: SmtpHostName("smtp.office365.com".into()),
+            smtp_server_port: SmtpPort(587),
+            profile_endpoint: ProfileUrl(
+                Url::parse("https://outlook.office.com/api/v2.0/me").unwrap(),
+            ),
+            client_id: ClientId::new("64c5d510-4b7e-4a18-8869-89778461c266".into()),
+            client_secret: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_login() {
+        init_logger("trace");
+        let (tx, _rx) = unbounded_channel();
+        let param = DeviceCodeFlowParam::new("mock_process".into(), "Microsoft".into(), Vec::new());
+        let provider_file = PathBuf::from_str(param.provider.as_str()).unwrap();
+        let interface = Mock::new(build_mock_provider(), provider_file);
+
+        let result = login(param, interface, tx).await;
+
+        log::trace!("{:?}", result);
+    }
 }

@@ -24,3 +24,6 @@ strum = "0.25"
 strum_macros = "0.25"
 thiserror = "1.0"
 serde_derive = "1.0.190"
+
+[dev-dependencies]
+tempdir = "0.3.7"

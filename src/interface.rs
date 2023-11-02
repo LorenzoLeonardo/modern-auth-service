@@ -1,4 +1,5 @@
 pub mod curl;
+#[cfg(test)]
 pub mod mock;
 pub mod production;
 

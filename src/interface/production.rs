@@ -58,7 +58,7 @@ impl Production {
                 "No valid directory".to_string(),
             ))?
             .to_path_buf();
-        let provider_directory = provider_directory.join(PathBuf::from("endpoints"));
+        let provider_directory = provider_directory.join("endpoints");
 
         Ok(Self {
             token_directory,

@@ -394,9 +394,9 @@ mod tests {
     use tokio::sync::mpsc::unbounded_channel;
 
     use crate::{
-        init_logger,
         interface::mock::Mock,
         oauth2::provider::{ProfileUrl, Provider, SmtpHostName, SmtpPort},
+        setup_logger,
     };
 
     use super::{login, DeviceCodeFlowParam};
@@ -431,7 +431,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_login() {
-        init_logger(LevelFilter::Trace);
+        setup_logger(LevelFilter::Trace);
         let (tx, _rx) = unbounded_channel();
         let param = DeviceCodeFlowParam::new("mock_process".into(), "Microsoft".into(), Vec::new());
         let provider_file = PathBuf::from_str(param.provider.as_str()).unwrap();

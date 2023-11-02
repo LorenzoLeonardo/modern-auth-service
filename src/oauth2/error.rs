@@ -51,6 +51,7 @@ pub enum ErrorCodes {
     HttpError,
     CurlError,
     ChannelError,
+    IpcClientError,
     OtherError,
 }
 
@@ -152,6 +153,13 @@ impl From<SendError<TaskMessage>> for OAuth2Error {
         OAuth2Error::new(ErrorCodes::ChannelError, e.to_string())
     }
 }
+
+impl From<ipc_client::client::error::Error> for OAuth2Error {
+    fn from(e: ipc_client::client::error::Error) -> Self {
+        OAuth2Error::new(ErrorCodes::IpcClientError, format!("{:?}", e))
+    }
+}
+
 impl std::error::Error for OAuth2Error {}
 
 impl Display for OAuth2Error {

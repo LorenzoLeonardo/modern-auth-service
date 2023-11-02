@@ -1,6 +1,5 @@
 // Standard libraries
 use std::{
-    collections::HashMap,
     fmt::Display,
     future::Future,
     path::{Path, PathBuf},
@@ -221,18 +220,12 @@ impl Display for DeviceCodeFlowParam {
     }
 }
 
-impl TryFrom<HashMap<String, JsonValue>> for DeviceCodeFlowParam {
+impl TryFrom<JsonValue> for DeviceCodeFlowParam {
     type Error = OAuth2Error;
 
-    fn try_from(value: HashMap<String, JsonValue>) -> Result<Self, Self::Error> {
-        #[derive(Serialize, Deserialize)]
-        #[serde(transparent)]
-        struct MyData {
-            value: HashMap<String, JsonValue>,
-        }
-        let value = MyData { value };
-        let value = serde_json::to_vec(&value)?;
-        let value: DeviceCodeFlowParam = serde_json::from_slice(value.as_slice())?;
+    fn try_from(value: JsonValue) -> Result<Self, Self::Error> {
+        let value = serde_json::to_string(&value)?;
+        let value: DeviceCodeFlowParam = serde_json::from_str(value.as_str())?;
         Ok(value)
     }
 }

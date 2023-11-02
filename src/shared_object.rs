@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use async_trait::async_trait;
 
 use ipc_client::client::message::JsonValue;
@@ -38,14 +36,10 @@ impl<I> SharedObject for DeviceCodeFlowObject<I>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<HashMap<String, JsonValue>>,
-    ) -> OutgoingMessage {
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage {
         log::trace!("Method: {} Param: {:?}", method, param);
 
-        let result = async move {
+        async move {
             match method {
                 "login" => {
                     if let Some(param) = param {
@@ -55,9 +49,9 @@ where
                             self.tx.clone(),
                         )
                         .await?;
-                        let result = serde_json::to_string(&result)?;
+
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            result.as_str(),
+                            JsonValue::try_from(result)?,
                         )))
                     } else {
                         Err(OAuth2Error::new(
@@ -73,9 +67,9 @@ where
                             self.tx.clone(),
                         )
                         .await?;
-                        let result = serde_json::to_string(&result)?;
+
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            result.as_str(),
+                            JsonValue::try_from(result)?,
                         )))
                     } else {
                         Err(OAuth2Error::new(
@@ -91,9 +85,9 @@ where
                             self.interface.clone(),
                         )
                         .await?;
-                        let result = serde_json::to_string(&result)?;
+
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            result.as_str(),
+                            JsonValue::try_from(result)?,
                         )))
                     } else {
                         Err(OAuth2Error::new(
@@ -109,9 +103,9 @@ where
                             self.interface.clone(),
                         )
                         .await?;
-                        let result = serde_json::to_string(&result)?;
+
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            result.as_str(),
+                            JsonValue::try_from(result)?,
                         )))
                     } else {
                         Err(OAuth2Error::new(
@@ -127,7 +121,6 @@ where
         .unwrap_or_else(|e| {
             let err_stream = serde_json::to_string(&e).unwrap_or_else(|e| e.to_string());
             OutgoingMessage::Error(Error::new(err_stream.as_str()))
-        });
-        result
+        })
     }
 }

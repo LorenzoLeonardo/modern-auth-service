@@ -247,7 +247,7 @@ pub async fn login<I>(
     param: DeviceCodeFlowParam,
     interface: I,
     tx: UnboundedSender<TaskMessage>,
-) -> Result<String, OAuth2Error>
+) -> Result<StandardDeviceAuthorizationResponse, OAuth2Error>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
@@ -283,7 +283,7 @@ where
         })
         .await?;
 
-    let result = serde_json::to_string(&device_auth_response)?;
+    let result = device_auth_response.clone();
     let token_file_clone = token_file.clone();
     // Start polling at the background
     let handle = tokio::spawn(async move {
@@ -307,16 +307,16 @@ where
 pub async fn cancel(
     param: DeviceCodeFlowParam,
     tx: UnboundedSender<TaskMessage>,
-) -> Result<String, OAuth2Error> {
+) -> Result<bool, OAuth2Error> {
     let token_file = make_filename(&param);
     tx.send(TaskMessage::AbortTask(token_file))?;
-    Ok("OK".to_string())
+    Ok(true)
 }
 
 pub async fn request_token<I>(
     param: DeviceCodeFlowParam,
     interface: I,
-) -> Result<String, OAuth2Error>
+) -> Result<TokenKeeper, OAuth2Error>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
@@ -345,6 +345,5 @@ where
         })
         .await?;
 
-    let result = serde_json::to_string(&token_keeper)?;
-    Ok(result)
+    Ok(token_keeper)
 }

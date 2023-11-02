@@ -54,6 +54,7 @@ where
                             self.tx.clone(),
                         )
                         .await?;
+                        let result = serde_json::to_string(&result)?;
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
                             result.as_str(),
                         )))
@@ -71,6 +72,7 @@ where
                             self.tx.clone(),
                         )
                         .await?;
+                        let result = serde_json::to_string(&result)?;
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
                             result.as_str(),
                         )))
@@ -88,6 +90,7 @@ where
                             self.interface.clone(),
                         )
                         .await?;
+                        let result = serde_json::to_string(&result)?;
                         Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
                             result.as_str(),
                         )))
@@ -102,7 +105,10 @@ where
             }
         }
         .await
-        .unwrap_or_else(|e| OutgoingMessage::Error(Error::new(format!("{:?}", e).as_str())));
+        .unwrap_or_else(|e| {
+            let err_stream = serde_json::to_string(&e).unwrap_or_else(|e| e.to_string());
+            OutgoingMessage::Error(Error::new(err_stream.as_str()))
+        });
         result
     }
 }

@@ -261,7 +261,7 @@ pub async fn login<I>(
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    log::trace!("Login Method(): {:?}", param);
+    log::trace!("login({:?})", param);
 
     let provider_dir = interface.provider_directory();
     let token_dir = interface.token_directory();
@@ -320,6 +320,8 @@ pub async fn cancel(
     param: DeviceCodeFlowParam,
     tx: UnboundedSender<TaskMessage>,
 ) -> Result<bool, OAuth2Error> {
+    log::trace!("cancelLogin({:?})", param);
+
     let token_file = make_filename(&param);
     tx.send(TaskMessage::AbortTask(token_file))?;
     Ok(true)
@@ -332,7 +334,7 @@ pub async fn request_token<I>(
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    log::trace!("Request Token Method(): {:?}", param);
+    log::trace!("requestToken({:?})", param);
 
     let provider_dir = interface.provider_directory();
     let token_dir = interface.token_directory();
@@ -361,6 +363,26 @@ where
         .await?;
 
     Ok(token_keeper)
+}
+
+pub async fn logout<I>(param: DeviceCodeFlowParam, interface: I) -> Result<bool, OAuth2Error>
+where
+    I: Interface + Send + Sync + 'static + Clone,
+{
+    log::trace!("logout({:?})", param);
+
+    let provider_dir = interface.provider_directory();
+    let token_dir = interface.token_directory();
+    let token_file = make_filename(&param);
+
+    log::trace!("Provider Directory: {:?}", provider_dir);
+    log::trace!("Token Directory: {:?}", token_dir);
+    log::trace!("Token File: {:?}", token_file);
+
+    let token_keeper = TokenKeeper::new(token_dir);
+
+    token_keeper.delete(token_file.as_path())?;
+    Ok(true)
 }
 
 #[cfg(test)]

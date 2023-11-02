@@ -101,6 +101,24 @@ where
                         ))
                     }
                 }
+                "logout" => {
+                    if let Some(param) = param {
+                        let result = device_code_flow::logout(
+                            DeviceCodeFlowParam::try_from(param)?,
+                            self.interface.clone(),
+                        )
+                        .await?;
+                        let result = serde_json::to_string(&result)?;
+                        Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
+                            result.as_str(),
+                        )))
+                    } else {
+                        Err(OAuth2Error::new(
+                            ErrorCodes::InvalidParameters,
+                            String::from("No parameter"),
+                        ))
+                    }
+                }
                 _ => todo!(),
             }
         }

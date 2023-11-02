@@ -18,7 +18,7 @@ use oauth2::{
 
 use ipc_client::client::message::JsonValue;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
 // My crates
 use crate::{
@@ -283,6 +283,15 @@ where
         provider.token_endpoint,
     );
 
+    let (oneshot_tx, oneshot_rx) = oneshot::channel();
+    tx.send(TaskMessage::Check(token_file.clone(), oneshot_tx))?;
+    if let Ok(existing) = oneshot_rx.await {
+        if existing {
+            tx.send(TaskMessage::Abort(token_file.clone()))?;
+            log::trace!("task aborted ...");
+        }
+    }
+
     let scope_vec: Vec<Scope> = param
         .scopes
         .iter()
@@ -311,7 +320,7 @@ where
         token_keeper.save(&token_file_clone).unwrap();
     });
     // Send this polling task to the background
-    tx.send(TaskMessage::AddTask(token_file, handle)).unwrap();
+    tx.send(TaskMessage::Add(token_file, handle)).unwrap();
 
     Ok(result)
 }
@@ -323,7 +332,7 @@ pub async fn cancel(
     log::trace!("cancelLogin({:?})", param);
 
     let token_file = make_filename(&param);
-    tx.send(TaskMessage::AbortTask(token_file))?;
+    tx.send(TaskMessage::Abort(token_file))?;
     Ok(true)
 }
 

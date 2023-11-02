@@ -1,10 +1,14 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use tokio::{sync::mpsc::UnboundedReceiver, task::JoinHandle};
+use tokio::{
+    sync::{mpsc::UnboundedReceiver, oneshot},
+    task::JoinHandle,
+};
 
 pub enum TaskMessage {
-    AddTask(PathBuf, JoinHandle<()>),
-    AbortTask(PathBuf),
+    Abort(PathBuf),
+    Add(PathBuf, JoinHandle<()>),
+    Check(PathBuf, oneshot::Sender<bool>),
 }
 
 pub struct TaskManager {
@@ -21,13 +25,24 @@ impl TaskManager {
             tokio::select! {
                     Some(msg) = self.rx.recv() => {
                     match msg {
-                        TaskMessage::AddTask(key, value) => {
+                        TaskMessage::Add(key, value) => {
                             task_list.insert(key, value);
                         }
-                        TaskMessage::AbortTask(key) => {
+                        TaskMessage::Abort(key) => {
                             if let Some(task) = task_list.remove(&key) {
                                 task.abort();
                             }
+                        }
+                        TaskMessage::Check(key, oneshot_tx) => {
+                            let existing = if let Some(task) = task_list.get(&key) {
+                                log::trace!("{:?} exists, aborting task ...", task);
+                                true
+                            } else {
+                                false
+                            };
+                            oneshot_tx.send(existing).unwrap_or_else(|e|{
+                                log::error!("{:}", e);
+                            });
                         }
                     }
                 }

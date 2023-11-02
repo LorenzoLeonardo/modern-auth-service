@@ -318,9 +318,25 @@ where
         token_keeper.set_directory(token_dir);
 
         token_keeper.save(&token_file_clone).unwrap();
+
+        let val = serde_json::to_string(&token_keeper).unwrap();
+        let value: JsonValue = serde_json::from_str(&val).unwrap();
+
+        log::trace!("Sending of event . . . .");
+
+        interface
+            .send_event("oauth2", value)
+            .await
+            .unwrap_or_else(|e| {
+                log::trace!("{:?}", e);
+            });
+        log::trace!("Event Sent!!!. . . .");
     });
     // Send this polling task to the background
-    tx.send(TaskMessage::Add(token_file, handle)).unwrap();
+    tx.send(TaskMessage::Add(token_file, handle))
+        .unwrap_or_else(|e| {
+            log::trace!("{:?}", e);
+        });
 
     Ok(result)
 }
@@ -438,7 +454,6 @@ mod tests {
         }
     }
 
-    #[tokio::test]
     async fn test_login() {
         setup_logger(LevelFilter::Trace);
         let (tx, _rx) = unbounded_channel();

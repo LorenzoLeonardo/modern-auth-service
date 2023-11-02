@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 use curl_http_client::error::Error;
 use directories::UserDirs;
+use ipc_client::client::{connector::Connector, message::JsonValue};
 use oauth2::{HttpRequest, HttpResponse};
 
 use crate::oauth2::error::{ErrorCodes, OAuth2Error};
@@ -14,6 +15,7 @@ pub struct Production {
     token_directory: PathBuf,
     provider_directory: PathBuf,
     curl: Curl,
+    connector: Connector,
 }
 
 #[async_trait]
@@ -29,10 +31,18 @@ impl Interface for Production {
     async fn http_request(&self, request: HttpRequest) -> Result<HttpResponse, Error> {
         self.curl.send(request).await
     }
+
+    async fn send_event(
+        &self,
+        event: &str,
+        result: JsonValue,
+    ) -> Result<(), ipc_client::client::error::Error> {
+        self.connector.send_event(event, result).await
+    }
 }
 
 impl Production {
-    pub fn new() -> Result<Self, OAuth2Error> {
+    pub fn new(connector: Connector) -> Result<Self, OAuth2Error> {
         let token_directory = UserDirs::new().ok_or(OAuth2Error::new(
             ErrorCodes::DirectoryError,
             "No valid directory".to_string(),
@@ -64,6 +74,7 @@ impl Production {
             token_directory,
             provider_directory,
             curl: Curl::new(),
+            connector,
         })
     }
 }

@@ -6,12 +6,21 @@ pub mod production;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use curl_http_client::error::Error;
+
+use ipc_client::client::message::JsonValue;
 use oauth2::{HttpRequest, HttpResponse};
 
 #[async_trait]
 pub trait Interface {
     fn token_directory(&self) -> PathBuf;
     fn provider_directory(&self) -> PathBuf;
-    async fn http_request(&self, request: HttpRequest) -> Result<HttpResponse, Error>;
+    async fn http_request(
+        &self,
+        request: HttpRequest,
+    ) -> Result<HttpResponse, curl_http_client::error::Error>;
+    async fn send_event(
+        &self,
+        event: &str,
+        result: JsonValue,
+    ) -> Result<(), ipc_client::client::error::Error>;
 }

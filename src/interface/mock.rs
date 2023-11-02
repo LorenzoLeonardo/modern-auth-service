@@ -8,6 +8,7 @@ use std::{
 use async_trait::async_trait;
 use curl_http_client::error::Error;
 use http::{HeaderMap, StatusCode};
+use ipc_client::client::message::JsonValue;
 use oauth2::{HttpRequest, HttpResponse};
 use tempdir::TempDir;
 
@@ -37,6 +38,13 @@ impl Interface for Mock {
             headers: HeaderMap::new(),
             body: Vec::new(),
         })
+    }
+    async fn send_event(
+        &self,
+        _event: &str,
+        _result: JsonValue,
+    ) -> Result<(), ipc_client::client::error::Error> {
+        Ok(())
     }
 }
 

@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 
+use ipc_client::client::error::Error;
 use ipc_client::client::message::JsonValue;
-use ipc_client::client::{
-    message::{CallObjectResponse, Error, OutgoingMessage},
-    shared_object::SharedObject,
-};
+use ipc_client::client::shared_object::SharedObject;
+
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::interface::Interface;
@@ -36,7 +35,11 @@ impl<I> SharedObject for DeviceCodeFlowObject<I>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage {
+    async fn remote_call(
+        &self,
+        method: &str,
+        param: Option<JsonValue>,
+    ) -> Result<JsonValue, Error> {
         log::trace!("Method: {} Param: {:?}", method, param);
 
         async move {
@@ -50,9 +53,7 @@ where
                         )
                         .await?;
 
-                        Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            JsonValue::try_from(result)?,
-                        )))
+                        Ok(JsonValue::try_from(result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -68,9 +69,7 @@ where
                         )
                         .await?;
 
-                        Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            JsonValue::try_from(result)?,
-                        )))
+                        Ok(JsonValue::try_from(result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -86,9 +85,7 @@ where
                         )
                         .await?;
 
-                        Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            JsonValue::try_from(result)?,
-                        )))
+                        Ok(JsonValue::try_from(result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -104,9 +101,7 @@ where
                         )
                         .await?;
 
-                        Ok(OutgoingMessage::CallResponse(CallObjectResponse::new(
-                            JsonValue::try_from(result)?,
-                        )))
+                        Ok(JsonValue::try_from(result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -118,9 +113,6 @@ where
             }
         }
         .await
-        .unwrap_or_else(|e| {
-            let err_stream = serde_json::to_string(&e).unwrap_or_else(|e| e.to_string());
-            OutgoingMessage::Error(Error::new(err_stream.as_str()))
-        })
+        .map_err(|e| Error::new(JsonValue::String(e.to_string())))
     }
 }

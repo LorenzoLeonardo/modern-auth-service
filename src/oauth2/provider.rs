@@ -1,8 +1,5 @@
-use ipc_client::client::message::JsonValue;
 use oauth2::{url::Url, AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, Scope, TokenUrl};
 use serde::{Deserialize, Serialize};
-
-use super::error::OAuth2Error;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Default, Clone)]
 pub struct SmtpHostName(pub String);
@@ -24,14 +21,4 @@ pub struct Provider {
     pub client_id: ClientId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<ClientSecret>,
-}
-
-impl TryFrom<JsonValue> for Provider {
-    type Error = OAuth2Error;
-
-    fn try_from(value: JsonValue) -> Result<Self, Self::Error> {
-        let value = serde_json::to_string(&value)?;
-        let value: Provider = serde_json::from_str(value.as_str())?;
-        Ok(value)
-    }
 }

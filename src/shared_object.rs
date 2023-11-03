@@ -48,13 +48,13 @@ where
                 "login" => {
                     if let Some(param) = param {
                         let result = device_code_flow::login(
-                            Provider::try_from(param)?,
+                            JsonValue::convert_to::<Provider>(&param)?,
                             self.interface.clone(),
                             self.tx.clone(),
                         )
                         .await?;
 
-                        Ok(JsonValue::try_from(result)?)
+                        Ok(JsonValue::convert_from(&result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -64,11 +64,13 @@ where
                 }
                 "cancel" => {
                     if let Some(param) = param {
-                        let result =
-                            device_code_flow::cancel(Provider::try_from(param)?, self.tx.clone())
-                                .await?;
+                        let result = device_code_flow::cancel(
+                            JsonValue::convert_to::<Provider>(&param)?,
+                            self.tx.clone(),
+                        )
+                        .await?;
 
-                        Ok(JsonValue::try_from(result)?)
+                        Ok(JsonValue::convert_from(&result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -79,12 +81,12 @@ where
                 "requestToken" => {
                     if let Some(param) = param {
                         let result = device_code_flow::request_token(
-                            Provider::try_from(param)?,
+                            JsonValue::convert_to::<Provider>(&param)?,
                             self.interface.clone(),
                         )
                         .await?;
 
-                        Ok(JsonValue::try_from(result)?)
+                        Ok(JsonValue::convert_from(&result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -95,12 +97,12 @@ where
                 "logout" => {
                     if let Some(param) = param {
                         let result = device_code_flow::logout(
-                            Provider::try_from(param)?,
+                            JsonValue::convert_to::<Provider>(&param)?,
                             self.interface.clone(),
                         )
                         .await?;
 
-                        Ok(JsonValue::try_from(result)?)
+                        Ok(JsonValue::convert_from(&result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,

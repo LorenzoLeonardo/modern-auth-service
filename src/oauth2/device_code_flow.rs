@@ -297,20 +297,20 @@ where
                 let mut token_keeper = TokenKeeper::from(token);
                 token_keeper.set_directory(token_dir);
                 if let Err(err) = token_keeper.save(&token_file_clone) {
-                    JsonValue::try_from(err).unwrap_or_else(|e| {
+                    JsonValue::convert_from(&err).unwrap_or_else(|e| {
                         let mut error_hash = HashMap::new();
                         error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
                         JsonValue::HashMap(error_hash)
                     })
                 } else {
-                    JsonValue::try_from(token_keeper).unwrap_or_else(|e| {
+                    JsonValue::convert_from(&token_keeper).unwrap_or_else(|e| {
                         let mut error_hash = HashMap::new();
                         error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
                         JsonValue::HashMap(error_hash)
                     })
                 }
             }
-            Err(err) => JsonValue::try_from(err).unwrap_or_else(|e| {
+            Err(err) => JsonValue::convert_from(&err).unwrap_or_else(|e| {
                 let mut error_hash = HashMap::new();
                 error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
                 JsonValue::HashMap(error_hash)

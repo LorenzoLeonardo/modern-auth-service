@@ -1,9 +1,8 @@
-use std::path::{Path, PathBuf};
-
+use ipc_client::client::message::JsonValue;
 use oauth2::{url::Url, AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, Scope, TokenUrl};
 use serde::{Deserialize, Serialize};
 
-use crate::oauth2::error::OAuth2Result;
+use super::error::OAuth2Error;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Default, Clone)]
 pub struct SmtpHostName(pub String);
@@ -16,22 +15,23 @@ pub struct ProfileUrl(pub Url);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Provider {
+    pub process: String,
+    pub provider: String,
     pub authorization_endpoint: AuthUrl,
     pub token_endpoint: TokenUrl,
     pub device_auth_endpoint: DeviceAuthorizationUrl,
     pub scopes: Vec<Scope>,
-    pub smtp_server: SmtpHostName,
-    pub smtp_server_port: SmtpPort,
-    pub profile_endpoint: ProfileUrl,
     pub client_id: ClientId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<ClientSecret>,
 }
 
-impl Provider {
-    pub fn read(directory: &Path, file_name: &PathBuf) -> OAuth2Result<Self> {
-        let input_path = directory.join(file_name);
-        let text = std::fs::read_to_string(input_path)?;
-        Ok(serde_json::from_str::<Self>(&text)?)
+impl TryFrom<JsonValue> for Provider {
+    type Error = OAuth2Error;
+
+    fn try_from(value: JsonValue) -> Result<Self, Self::Error> {
+        let value = serde_json::to_string(&value)?;
+        let value: Provider = serde_json::from_str(value.as_str())?;
+        Ok(value)
     }
 }

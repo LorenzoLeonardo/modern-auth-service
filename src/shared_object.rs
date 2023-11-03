@@ -7,8 +7,9 @@ use ipc_client::client::shared_object::SharedObject;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::interface::Interface;
+use crate::oauth2::provider::Provider;
 use crate::oauth2::{
-    device_code_flow::{self, DeviceCodeFlowParam},
+    device_code_flow::{self},
     error::{ErrorCodes, OAuth2Error},
 };
 use crate::task_manager::TaskMessage;
@@ -47,7 +48,7 @@ where
                 "login" => {
                     if let Some(param) = param {
                         let result = device_code_flow::login(
-                            DeviceCodeFlowParam::try_from(param)?,
+                            Provider::try_from(param)?,
                             self.interface.clone(),
                             self.tx.clone(),
                         )
@@ -63,11 +64,9 @@ where
                 }
                 "cancel" => {
                     if let Some(param) = param {
-                        let result = device_code_flow::cancel(
-                            DeviceCodeFlowParam::try_from(param)?,
-                            self.tx.clone(),
-                        )
-                        .await?;
+                        let result =
+                            device_code_flow::cancel(Provider::try_from(param)?, self.tx.clone())
+                                .await?;
 
                         Ok(JsonValue::try_from(result)?)
                     } else {
@@ -80,7 +79,7 @@ where
                 "requestToken" => {
                     if let Some(param) = param {
                         let result = device_code_flow::request_token(
-                            DeviceCodeFlowParam::try_from(param)?,
+                            Provider::try_from(param)?,
                             self.interface.clone(),
                         )
                         .await?;
@@ -96,7 +95,7 @@ where
                 "logout" => {
                     if let Some(param) = param {
                         let result = device_code_flow::logout(
-                            DeviceCodeFlowParam::try_from(param)?,
+                            Provider::try_from(param)?,
                             self.interface.clone(),
                         )
                         .await?;

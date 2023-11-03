@@ -243,32 +243,22 @@ fn make_token_dir() -> Result<PathBuf, OAuth2Error> {
     Ok(directory)
 }
 
-fn make_filename(param: &DeviceCodeFlowParam) -> PathBuf {
-    PathBuf::from(param.to_string())
+fn make_filename(param: &Provider) -> PathBuf {
+    PathBuf::from(format!("{}{}DeviceCodeFlow", param.process, param.provider))
 }
 
 pub async fn login<I>(
-    param: DeviceCodeFlowParam,
+    provider: Provider,
     interface: I,
     tx: UnboundedSender<TaskMessage>,
 ) -> Result<StandardDeviceAuthorizationResponse, OAuth2Error>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    log::trace!("login({:?})", param);
+    log::trace!("login({:?})", provider);
 
-    let provider_dir = interface.provider_directory();
     let token_dir = interface.token_directory();
-    let token_file = make_filename(&param);
-
-    log::trace!("Provider Directory: {:?}", provider_dir);
-    log::trace!("Token Directory: {:?}", token_dir);
-    log::trace!("Token File: {:?}", token_file);
-
-    let provider = Provider::read(
-        provider_dir.as_path(),
-        &PathBuf::from(param.provider.as_str()),
-    )?;
+    let token_file = make_filename(&provider);
 
     let device_code_flow = DeviceCodeFlow::new(
         provider.client_id,
@@ -286,14 +276,8 @@ where
         }
     }
 
-    let scope_vec: Vec<Scope> = param
-        .scopes
-        .iter()
-        .map(|s| Scope::new(s.to_string()))
-        .collect();
-
     let device_auth_response = device_code_flow
-        .request_device_code(scope_vec, |request| async {
+        .request_device_code(provider.scopes, |request| async {
             interface.http_request(request).await
         })
         .await?;
@@ -353,37 +337,24 @@ where
 }
 
 pub async fn cancel(
-    param: DeviceCodeFlowParam,
+    provider: Provider,
     tx: UnboundedSender<TaskMessage>,
 ) -> Result<bool, OAuth2Error> {
-    log::trace!("cancelLogin({:?})", param);
+    log::trace!("cancelLogin({:?})", provider);
 
-    let token_file = make_filename(&param);
+    let token_file = make_filename(&provider);
     tx.send(TaskMessage::Abort(token_file))?;
     Ok(true)
 }
 
-pub async fn request_token<I>(
-    param: DeviceCodeFlowParam,
-    interface: I,
-) -> Result<TokenKeeper, OAuth2Error>
+pub async fn request_token<I>(provider: Provider, interface: I) -> Result<TokenKeeper, OAuth2Error>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    log::trace!("requestToken({:?})", param);
+    log::trace!("requestToken({:?})", provider);
 
-    let provider_dir = interface.provider_directory();
     let token_dir = interface.token_directory();
-    let token_file = make_filename(&param);
-
-    log::trace!("Provider Directory: {:?}", provider_dir);
-    log::trace!("Token Directory: {:?}", token_dir);
-    log::trace!("Token File: {:?}", token_file);
-
-    let provider = Provider::read(
-        provider_dir.as_path(),
-        &PathBuf::from(param.provider.as_str()),
-    )?;
+    let token_file = make_filename(&provider);
 
     let device_code_flow = DeviceCodeFlow::new(
         provider.client_id,
@@ -401,19 +372,14 @@ where
     Ok(token_keeper)
 }
 
-pub async fn logout<I>(param: DeviceCodeFlowParam, interface: I) -> Result<bool, OAuth2Error>
+pub async fn logout<I>(provider: Provider, interface: I) -> Result<bool, OAuth2Error>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    log::trace!("logout({:?})", param);
+    log::trace!("logout({:?})", provider);
 
-    let provider_dir = interface.provider_directory();
     let token_dir = interface.token_directory();
-    let token_file = make_filename(&param);
-
-    log::trace!("Provider Directory: {:?}", provider_dir);
-    log::trace!("Token Directory: {:?}", token_dir);
-    log::trace!("Token File: {:?}", token_file);
+    let token_file = make_filename(&provider);
 
     let token_keeper = TokenKeeper::new(token_dir);
 
@@ -423,19 +389,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, str::FromStr};
-
+    use crate::oauth2::provider::Provider;
+    use crate::{interface::mock::Mock, setup_logger};
     use log::LevelFilter;
     use oauth2::{url::Url, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl};
     use tokio::sync::mpsc::unbounded_channel;
 
-    use crate::{
-        interface::mock::Mock,
-        oauth2::provider::{ProfileUrl, Provider, SmtpHostName, SmtpPort},
-        setup_logger,
-    };
-
-    use super::{login, DeviceCodeFlowParam};
+    use super::login;
 
     fn build_mock_provider() -> Provider {
         Provider {
@@ -455,24 +415,19 @@ mod tests {
                 Scope::new("https://outlook.office.com/SMTP.Send".into()),
                 Scope::new("https://outlook.office.com/User.Read".into()),
             ],
-            smtp_server: SmtpHostName("smtp.office365.com".into()),
-            smtp_server_port: SmtpPort(587),
-            profile_endpoint: ProfileUrl(
-                Url::parse("https://outlook.office.com/api/v2.0/me").unwrap(),
-            ),
             client_id: ClientId::new("64c5d510-4b7e-4a18-8869-89778461c266".into()),
             client_secret: None,
+            process: String::from("Process Name"),
+            provider: String::from("Microsoft"),
         }
     }
 
     async fn test_login() {
         setup_logger(LevelFilter::Trace);
         let (tx, _rx) = unbounded_channel();
-        let param = DeviceCodeFlowParam::new("mock_process".into(), "Microsoft".into(), Vec::new());
-        let provider_file = PathBuf::from_str(param.provider.as_str()).unwrap();
-        let interface = Mock::new(build_mock_provider(), provider_file);
-
-        let result = login(param, interface, tx).await;
+        let interface = Mock::new();
+        let provider = build_mock_provider();
+        let result = login(provider, interface, tx).await;
 
         log::trace!("{:?}", result);
     }

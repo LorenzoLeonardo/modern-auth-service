@@ -13,7 +13,6 @@ use super::{curl::Curl, Interface};
 #[derive(Clone)]
 pub struct Production {
     token_directory: PathBuf,
-    provider_directory: PathBuf,
     curl: Curl,
     connector: Connector,
 }
@@ -22,10 +21,6 @@ pub struct Production {
 impl Interface for Production {
     fn token_directory(&self) -> PathBuf {
         self.token_directory.clone()
-    }
-
-    fn provider_directory(&self) -> PathBuf {
-        self.provider_directory.clone()
     }
 
     async fn http_request(&self, request: HttpRequest) -> Result<HttpResponse, Error> {
@@ -51,28 +46,8 @@ impl Production {
 
         token_directory = token_directory.join("token");
 
-        let provider_directory = std::env::current_exe()?
-            .parent()
-            .ok_or(OAuth2Error::new(
-                ErrorCodes::DirectoryError,
-                "No valid directory".to_string(),
-            ))?
-            .parent()
-            .ok_or(OAuth2Error::new(
-                ErrorCodes::DirectoryError,
-                "No valid directory".to_string(),
-            ))?
-            .parent()
-            .ok_or(OAuth2Error::new(
-                ErrorCodes::DirectoryError,
-                "No valid directory".to_string(),
-            ))?
-            .to_path_buf();
-        let provider_directory = provider_directory.join("endpoints");
-
         Ok(Self {
             token_directory,
-            provider_directory,
             curl: Curl::new(),
             connector,
         })

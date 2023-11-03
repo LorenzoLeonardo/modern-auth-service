@@ -13,7 +13,6 @@ use oauth2::{HttpRequest, HttpResponse};
 #[async_trait]
 pub trait Interface {
     fn token_directory(&self) -> PathBuf;
-    fn provider_directory(&self) -> PathBuf;
     async fn http_request(
         &self,
         request: HttpRequest,

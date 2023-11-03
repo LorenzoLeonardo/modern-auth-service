@@ -1,5 +1,6 @@
 // Standard libraries
 use std::{
+    collections::HashMap,
     fmt::Display,
     future::Future,
     path::{Path, PathBuf},
@@ -301,19 +302,36 @@ where
     let token_file_clone = token_file.clone();
     // Start polling at the background
     let handle = tokio::spawn(async move {
-        let token = device_code_flow
+        let result = device_code_flow
             .poll_access_token(device_auth_response, |request| async {
                 interface.http_request(request).await
             })
-            .await
-            .unwrap();
-        let mut token_keeper = TokenKeeper::from(token);
-        token_keeper.set_directory(token_dir);
+            .await;
 
-        token_keeper.save(&token_file_clone).unwrap();
-
-        let val = serde_json::to_string(&token_keeper).unwrap();
-        let value: JsonValue = serde_json::from_str(&val).unwrap();
+        let value = match result {
+            Ok(token) => {
+                let mut token_keeper = TokenKeeper::from(token);
+                token_keeper.set_directory(token_dir);
+                if let Err(err) = token_keeper.save(&token_file_clone) {
+                    JsonValue::try_from(err).unwrap_or_else(|e| {
+                        let mut error_hash = HashMap::new();
+                        error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
+                        JsonValue::HashMap(error_hash)
+                    })
+                } else {
+                    JsonValue::try_from(token_keeper).unwrap_or_else(|e| {
+                        let mut error_hash = HashMap::new();
+                        error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
+                        JsonValue::HashMap(error_hash)
+                    })
+                }
+            }
+            Err(err) => JsonValue::try_from(err).unwrap_or_else(|e| {
+                let mut error_hash = HashMap::new();
+                error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
+                JsonValue::HashMap(error_hash)
+            }),
+        };
 
         log::trace!("Sending of event . . . .");
 

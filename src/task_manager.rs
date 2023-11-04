@@ -10,6 +10,7 @@ pub enum TaskMessage {
     Add(PathBuf, JoinHandle<()>),
     Check(PathBuf, oneshot::Sender<bool>),
     PollingDone(PathBuf),
+    Quit,
 }
 
 pub struct TaskManager {
@@ -51,6 +52,9 @@ impl TaskManager {
                         TaskMessage::PollingDone(key) => {
                             task_list.remove(&key);
                             log::trace!("Polling tasks: {}", task_list.len());
+                        }
+                        TaskMessage::Quit => {
+                            break;
                         }
                     }
                 }

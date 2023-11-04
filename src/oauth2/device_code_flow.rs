@@ -221,16 +221,6 @@ impl Display for DeviceCodeFlowParam {
     }
 }
 
-impl TryFrom<JsonValue> for DeviceCodeFlowParam {
-    type Error = OAuth2Error;
-
-    fn try_from(value: JsonValue) -> Result<Self, Self::Error> {
-        let value = serde_json::to_string(&value)?;
-        let value: DeviceCodeFlowParam = serde_json::from_str(value.as_str())?;
-        Ok(value)
-    }
-}
-
 fn make_token_dir() -> Result<PathBuf, OAuth2Error> {
     let directory = UserDirs::new().ok_or(OAuth2Error::new(
         ErrorCodes::DirectoryError,
@@ -392,50 +382,4 @@ where
 
     token_keeper.delete(token_file.as_path())?;
     Ok(true)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::oauth2::provider::Provider;
-    use crate::{interface::mock::Mock, setup_logger};
-    use log::LevelFilter;
-    use oauth2::{url::Url, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl};
-    use tokio::sync::mpsc::unbounded_channel;
-
-    use super::login;
-
-    fn build_mock_provider() -> Provider {
-        Provider {
-            authorization_endpoint: AuthUrl::from_url(
-                Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/authorize")
-                    .unwrap(),
-            ),
-            token_endpoint: TokenUrl::from_url(
-                Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/token").unwrap(),
-            ),
-            device_auth_endpoint: DeviceAuthorizationUrl::from_url(
-                Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/devicecode")
-                    .unwrap(),
-            ),
-            scopes: vec![
-                Scope::new("offline_access".into()),
-                Scope::new("https://outlook.office.com/SMTP.Send".into()),
-                Scope::new("https://outlook.office.com/User.Read".into()),
-            ],
-            client_id: ClientId::new("64c5d510-4b7e-4a18-8869-89778461c266".into()),
-            client_secret: None,
-            process: String::from("Process Name"),
-            provider: String::from("Microsoft"),
-        }
-    }
-
-    async fn test_login() {
-        setup_logger(LevelFilter::Trace);
-        let (tx, _rx) = unbounded_channel();
-        let interface = Mock::new();
-        let provider = build_mock_provider();
-        let result = login(provider, interface, tx).await;
-
-        log::trace!("{:?}", result);
-    }
 }

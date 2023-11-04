@@ -12,6 +12,7 @@ use super::Interface;
 #[derive(Clone)]
 pub struct Mock {
     token_directory: Arc<TempDir>,
+    mock_response: HttpResponse,
 }
 
 #[async_trait]
@@ -21,11 +22,7 @@ impl Interface for Mock {
     }
 
     async fn http_request(&self, _request: HttpRequest) -> Result<HttpResponse, Error> {
-        Ok(HttpResponse {
-            status_code: StatusCode::OK,
-            headers: HeaderMap::new(),
-            body: Vec::new(),
-        })
+        Ok(self.mock_response.clone())
     }
     async fn send_event(
         &self,
@@ -40,6 +37,16 @@ impl Mock {
     pub fn new() -> Self {
         Self {
             token_directory: Arc::new(TempDir::new_in(".", "tests").unwrap()),
+            mock_response: HttpResponse {
+                status_code: StatusCode::OK,
+                headers: HeaderMap::new(),
+                body: Vec::new(),
+            },
         }
+    }
+
+    pub fn set_mock_response(mut self, response: HttpResponse) -> Self {
+        self.mock_response = response;
+        self
     }
 }

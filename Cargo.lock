@@ -537,7 +537,7 @@ dependencies = [
 [[package]]
 name = "ipc-server"
 version = "0.1.2"
-source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#edf8e80980b77e3a27dbc52550c06f879365ba08"
+source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#44114f1ff155ee5c544a18b9f57422c8a4e05d3e"
 dependencies = [
  "async-trait",
  "chrono",
@@ -640,7 +640,7 @@ dependencies = [
 
 [[package]]
 name = "modern-auth-service"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-curl",
  "async-trait",
@@ -725,9 +725,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.94"
+version = "0.9.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f55da20b29f956fb01f0add8683eb26ee13ebe3ebd935e49898717c6b4b2830"
+checksum = "40a4130519a360279579c2053038317e40eff64d13fd3f004f9e1b72b8a6aaf9"
 dependencies = [
  "cc",
  "libc",

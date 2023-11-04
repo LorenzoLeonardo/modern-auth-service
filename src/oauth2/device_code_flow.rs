@@ -284,6 +284,7 @@ where
 
     let result = device_auth_response.clone();
     let token_file_clone = token_file.clone();
+    let task_channel = tx.clone();
     // Start polling at the background
     let handle = tokio::spawn(async move {
         let result = device_code_flow
@@ -318,10 +319,16 @@ where
         };
 
         log::trace!("Sending of event . . . .");
-
+        // Sending to event result to the subscribers
         interface
             .send_event("oauth2", value)
             .await
+            .unwrap_or_else(|e| {
+                log::trace!("{:?}", e);
+            });
+        // Task is done, removing from the list
+        task_channel
+            .send(TaskMessage::PollingDone(token_file_clone))
             .unwrap_or_else(|e| {
                 log::trace!("{:?}", e);
             });

@@ -9,6 +9,7 @@ pub enum TaskMessage {
     Abort(PathBuf),
     Add(PathBuf, JoinHandle<()>),
     Check(PathBuf, oneshot::Sender<bool>),
+    PollingDone(PathBuf),
 }
 
 pub struct TaskManager {
@@ -27,13 +28,16 @@ impl TaskManager {
                     match msg {
                         TaskMessage::Add(key, value) => {
                             task_list.insert(key, value);
+                            log::trace!("Polling tasks: {}", task_list.len());
                         }
                         TaskMessage::Abort(key) => {
                             if let Some(task) = task_list.remove(&key) {
                                 task.abort();
                             }
+                            log::trace!("Polling tasks: {}", task_list.len());
                         }
                         TaskMessage::Check(key, oneshot_tx) => {
+                            log::trace!("Polling tasks: {}", task_list.len());
                             let existing = if let Some(task) = task_list.get(&key) {
                                 log::trace!("{:?} exists, aborting task ...", task);
                                 true
@@ -43,6 +47,10 @@ impl TaskManager {
                             oneshot_tx.send(existing).unwrap_or_else(|e|{
                                 log::error!("{:}", e);
                             });
+                        }
+                        TaskMessage::PollingDone(key) => {
+                            task_list.remove(&key);
+                            log::trace!("Polling tasks: {}", task_list.len());
                         }
                     }
                 }

@@ -114,6 +114,9 @@ where
             }
         }
         .await
-        .map_err(|e| Error::new(JsonValue::String(e.to_string())))
+        .map_err(|e| {
+            log::error!("{e:?}");
+            Error::new(JsonValue::String(e.to_string()))
+        })
     }
 }

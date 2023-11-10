@@ -44,10 +44,10 @@ impl Curl {
     }
 
     pub async fn send(&self, request: oauth2::HttpRequest) -> Result<oauth2::HttpResponse, Error> {
-        log::debug!("Request Url: {}", request.url);
-        log::debug!("Request Header: {:?}", request.headers);
-        log::debug!("Request Method: {}", request.method);
-        log::debug!(
+        log::trace!("Request Url: {}", request.url);
+        log::trace!("Request Header: {:?}", request.headers);
+        log::trace!("Request Method: {}", request.method);
+        log::trace!(
             "Request Body: {}",
             std::str::from_utf8(request.body.as_slice()).unwrap_or_default()
         );
@@ -58,12 +58,12 @@ impl Curl {
             .await
             .map(Curl::to_oauth_response)?;
 
-        log::debug!("Response Header: {:?}", response.headers);
-        log::debug!(
+        log::trace!("Response Header: {:?}", response.headers);
+        log::trace!(
             "Response Body: {}",
             std::str::from_utf8(response.body.as_slice()).unwrap_or_default()
         );
-        log::debug!("Response Status: {}", response.status_code);
+        log::info!("Response Status: {}", response.status_code);
         Ok(response)
     }
 }

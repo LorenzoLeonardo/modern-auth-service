@@ -36,9 +36,15 @@ pub fn setup_logger(level: LevelFilter) {
         });
 }
 
+#[cfg(debug_assertions)]
+const LOG_LEVEL: log::LevelFilter = log::LevelFilter::Trace;
+
+#[cfg(not(debug_assertions))]
+const LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OAuth2Result<()> {
-    setup_logger(LevelFilter::Trace);
+    setup_logger(LOG_LEVEL);
 
     let version = env!("CARGO_PKG_VERSION");
 

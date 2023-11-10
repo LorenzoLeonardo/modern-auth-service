@@ -262,7 +262,7 @@ where
     if let Ok(existing) = oneshot_rx.await {
         if existing {
             tx.send(TaskMessage::Abort(token_file.clone()))?;
-            log::trace!("task aborted ...");
+            log::info!("task aborted ...");
         }
     }
 
@@ -308,26 +308,26 @@ where
             }),
         };
 
-        log::trace!("Sending of event . . . .");
+        log::info!("Sending of event . . . .");
         // Sending to event result to the subscribers
         interface
             .send_event("oauth2", value)
             .await
             .unwrap_or_else(|e| {
-                log::trace!("{:?}", e);
+                log::error!("{:?}", e);
             });
         // Task is done, removing from the list
         task_channel
             .send(TaskMessage::PollingDone(token_file_clone))
             .unwrap_or_else(|e| {
-                log::trace!("{:?}", e);
+                log::error!("{:?}", e);
             });
-        log::trace!("Event Sent!!!. . . .");
+        log::info!("Event Sent!!!. . . .");
     });
     // Send this polling task to the background
     tx.send(TaskMessage::Add(token_file, handle))
         .unwrap_or_else(|e| {
-            log::trace!("{:?}", e);
+            log::error!("{:?}", e);
         });
 
     Ok(result)

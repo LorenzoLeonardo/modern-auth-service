@@ -8,15 +8,27 @@ mod task_manager;
 
 use interface::production::Production;
 use ipc_client::client::{connector::Connector, shared_object::ObjectDispatcher};
+use ipc_client::ENV_LOGGER;
 
-use log::LevelFilter;
 use oauth2::error::OAuth2Result;
 
 use shared_object::DeviceCodeFlowObject;
 use task_manager::TaskManager;
 use tokio::sync::mpsc::unbounded_channel;
 
-pub fn setup_logger(level: LevelFilter) {
+pub fn setup_logger() {
+    let level = std::env::var(ENV_LOGGER)
+        .map(|var| match var.to_lowercase().as_str() {
+            "trace" => log::LevelFilter::Trace,
+            "debug" => log::LevelFilter::Debug,
+            "info" => log::LevelFilter::Info,
+            "warn" => log::LevelFilter::Warn,
+            "error" => log::LevelFilter::Error,
+            "off" => log::LevelFilter::Off,
+            _ => log::LevelFilter::Info,
+        })
+        .unwrap_or_else(|_| log::LevelFilter::Info);
+
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -36,15 +48,9 @@ pub fn setup_logger(level: LevelFilter) {
         });
 }
 
-#[cfg(debug_assertions)]
-const LOG_LEVEL: log::LevelFilter = log::LevelFilter::Trace;
-
-#[cfg(not(debug_assertions))]
-const LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OAuth2Result<()> {
-    setup_logger(LOG_LEVEL);
+    setup_logger();
 
     let version = env!("CARGO_PKG_VERSION");
 

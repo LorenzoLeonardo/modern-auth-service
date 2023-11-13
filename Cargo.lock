@@ -542,8 +542,8 @@ dependencies = [
 
 [[package]]
 name = "ipc-server"
-version = "0.1.5"
-source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#b70771401c3a0a95addd37eb4ca5edde02ec38d6"
+version = "0.1.6"
+source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#af0efe6220f836199da4bf1123f383e7200234aa"
 dependencies = [
  "async-trait",
  "chrono",
@@ -657,7 +657,7 @@ dependencies = [
 
 [[package]]
 name = "modern-auth-service"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "async-curl",
  "async-trait",

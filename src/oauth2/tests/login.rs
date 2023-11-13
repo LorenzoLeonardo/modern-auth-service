@@ -6,7 +6,6 @@ use crate::task_manager::{TaskManager, TaskMessage};
 use crate::{interface::mock::Mock, setup_logger};
 
 use http::{HeaderMap, HeaderValue, StatusCode};
-use log::LevelFilter;
 use oauth2::HttpResponse;
 use oauth2::{url::Url, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl};
 use tokio::sync::mpsc::unbounded_channel;
@@ -36,7 +35,7 @@ fn build_mock_provider() -> Provider {
 
 #[tokio::test]
 async fn test_login() {
-    setup_logger(LevelFilter::Trace);
+    setup_logger();
     let (tx, rx) = unbounded_channel();
     tokio::spawn(async move {
         let body = r#"{"user_code":"usercode-123","device_code":"devicecode-123","verification_uri":"https://verification_url","expires_in":20,"interval":1,"message":"Mock message"}"#.as_bytes().to_vec();

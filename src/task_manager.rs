@@ -1,15 +1,19 @@
 use std::{collections::HashMap, path::PathBuf};
 
+use ipc_client::client::message::JsonValue;
 use tokio::{
     sync::{mpsc::UnboundedReceiver, oneshot},
     task::JoinHandle,
 };
+
+use crate::interface::Interface;
 
 pub enum TaskMessage {
     Abort(PathBuf),
     Add(PathBuf, JoinHandle<()>),
     Check(PathBuf, oneshot::Sender<bool>),
     PollingDone(PathBuf),
+    SendEvent(JsonValue),
     Quit,
 }
 
@@ -21,7 +25,7 @@ impl TaskManager {
     pub fn new(rx: UnboundedReceiver<TaskMessage>) -> Self {
         Self { rx }
     }
-    pub async fn run(&mut self) {
+    pub async fn run<I: Interface + Send + Sync + 'static>(&mut self, interface: I) {
         let mut task_list = HashMap::<PathBuf, JoinHandle<()>>::new();
         loop {
             tokio::select! {
@@ -52,6 +56,11 @@ impl TaskManager {
                         TaskMessage::PollingDone(key) => {
                             task_list.remove(&key);
                             log::trace!("Polling tasks: {}", task_list.len());
+                        }
+                        TaskMessage::SendEvent(json) => {
+                            interface.send_event("oauth2", json).await.unwrap_or_else(|e|{
+                                log::error!("{:}", e);
+                            });
                         }
                         TaskMessage::Quit => {
                             break;

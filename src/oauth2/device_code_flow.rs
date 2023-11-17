@@ -279,7 +279,22 @@ where
     let handle = tokio::spawn(async move {
         let result = device_code_flow
             .poll_access_token(device_auth_response, |request| async {
-                interface.http_request(request).await
+                let response = interface.http_request(request).await;
+                match response {
+                    Ok(response) => {
+                        let body = String::from_utf8_lossy(response.body.as_slice());
+                        task_channel
+                            .send(TaskMessage::SendEvent(JsonValue::String(body.to_string())))
+                            .unwrap_or_else(|e| {
+                                log::error!("{:?}", e);
+                            });
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        log::trace!("{err:?}");
+                        Err(err)
+                    }
+                }
             })
             .await;
 

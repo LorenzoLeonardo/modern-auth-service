@@ -62,7 +62,7 @@ async fn main() -> OAuth2Result<()> {
     let connector = Connector::connect().await.unwrap();
     let interface = Production::new(connector)?;
 
-    let object = DeviceCodeFlowObject::new(interface, tx);
+    let object = DeviceCodeFlowObject::new(interface.clone(), tx);
 
     shared
         .register_object("oauth2.device.code.flow", Box::new(object))
@@ -73,7 +73,7 @@ async fn main() -> OAuth2Result<()> {
 
     let mut task = TaskManager::new(rx);
 
-    task.run().await;
+    task.run(interface).await;
 
     log::info!("Stopping modern-auth-service v.{}", version);
     Ok(())

@@ -37,6 +37,8 @@ fn build_mock_provider() -> Provider {
 async fn test_login() {
     setup_logger();
     let (tx, rx) = unbounded_channel();
+    let interface = Mock::new();
+    let mut inner = interface.clone();
     tokio::spawn(async move {
         let body = r#"{"user_code":"usercode-123","device_code":"devicecode-123","verification_uri":"https://verification_url","expires_in":20,"interval":1,"message":"Mock message"}"#.as_bytes().to_vec();
         let mut headers = HeaderMap::new();
@@ -52,10 +54,9 @@ async fn test_login() {
             body,
         };
 
-        let mut interface = Mock::new();
-        interface = interface.set_mock_response(response);
+        inner = inner.set_mock_response(response);
         let provider = build_mock_provider();
-        let result = login(provider, interface, tx.clone()).await.unwrap();
+        let result = login(provider, inner, tx.clone()).await.unwrap();
 
         assert_eq!(result.device_code().secret(), "devicecode-123");
         assert_eq!(result.expires_in(), Duration::from_secs(20));
@@ -72,5 +73,5 @@ async fn test_login() {
         tx.send(TaskMessage::Quit).unwrap();
     });
 
-    TaskManager::new(rx).run().await;
+    TaskManager::new(rx).run(interface).await;
 }

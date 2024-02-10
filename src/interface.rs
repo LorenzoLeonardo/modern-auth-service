@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 
+use curl_http_client::collector::Collector;
 use ipc_client::client::message::JsonValue;
 use oauth2::{HttpRequest, HttpResponse};
 
@@ -16,7 +17,7 @@ pub trait Interface {
     async fn http_request(
         &self,
         request: HttpRequest,
-    ) -> Result<HttpResponse, curl_http_client::error::Error>;
+    ) -> Result<HttpResponse, curl_http_client::error::Error<Collector>>;
     async fn send_event(
         &self,
         event: &str,

@@ -1,11 +1,11 @@
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
-use curl_http_client::error::Error;
+use curl_http_client::{collector::Collector, error::Error};
 use http::{HeaderMap, StatusCode};
 use ipc_client::client::message::JsonValue;
 use oauth2::{HttpRequest, HttpResponse};
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use super::Interface;
 
@@ -21,7 +21,7 @@ impl Interface for Mock {
         self.token_directory.path().join("token")
     }
 
-    async fn http_request(&self, _request: HttpRequest) -> Result<HttpResponse, Error> {
+    async fn http_request(&self, _request: HttpRequest) -> Result<HttpResponse, Error<Collector>> {
         Ok(self.mock_response.clone())
     }
     async fn send_event(
@@ -36,7 +36,7 @@ impl Interface for Mock {
 impl Mock {
     pub fn new() -> Self {
         Self {
-            token_directory: Arc::new(TempDir::new_in(".", "tests").unwrap()),
+            token_directory: Arc::new(TempDir::with_prefix_in("tests", ".").unwrap()),
             mock_response: HttpResponse {
                 status_code: StatusCode::OK,
                 headers: HeaderMap::new(),

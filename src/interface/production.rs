@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use curl_http_client::error::Error;
+use curl_http_client::{collector::Collector, error::Error};
 use directories::UserDirs;
 use ipc_client::client::{connector::Connector, message::JsonValue};
 use oauth2::{HttpRequest, HttpResponse};
@@ -23,7 +23,7 @@ impl Interface for Production {
         self.token_directory.clone()
     }
 
-    async fn http_request(&self, request: HttpRequest) -> Result<HttpResponse, Error> {
+    async fn http_request(&self, request: HttpRequest) -> Result<HttpResponse, Error<Collector>> {
         self.curl.send(request).await
     }
 

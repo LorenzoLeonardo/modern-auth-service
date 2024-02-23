@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
 use ipc_client::client::error::Error;
-use ipc_client::client::message::JsonValue;
 use ipc_client::client::shared_object::SharedObject;
+use json_elem::jsonelem::JsonElem;
 
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -36,11 +36,7 @@ impl<I> SharedObject for DeviceCodeFlowObject<I>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<JsonValue>,
-    ) -> Result<JsonValue, Error> {
+    async fn remote_call(&self, method: &str, param: Option<JsonElem>) -> Result<JsonElem, Error> {
         log::trace!("Method: {} Param: {:?}", method, param);
 
         async move {
@@ -48,13 +44,13 @@ where
                 "login" => {
                     if let Some(param) = param {
                         let result = device_code_flow::login(
-                            JsonValue::convert_to::<Provider>(&param)?,
+                            JsonElem::convert_to::<Provider>(&param)?,
                             self.interface.clone(),
                             self.tx.clone(),
                         )
                         .await?;
 
-                        Ok(JsonValue::convert_from(&result)?)
+                        Ok(JsonElem::convert_from(&result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -65,12 +61,12 @@ where
                 "cancel" => {
                     if let Some(param) = param {
                         let result = device_code_flow::cancel(
-                            JsonValue::convert_to::<Provider>(&param)?,
+                            JsonElem::convert_to::<Provider>(&param)?,
                             self.tx.clone(),
                         )
                         .await?;
 
-                        Ok(JsonValue::convert_from(&result)?)
+                        Ok(JsonElem::convert_from(&result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -81,12 +77,12 @@ where
                 "requestToken" => {
                     if let Some(param) = param {
                         let result = device_code_flow::request_token(
-                            JsonValue::convert_to::<Provider>(&param)?,
+                            JsonElem::convert_to::<Provider>(&param)?,
                             self.interface.clone(),
                         )
                         .await?;
 
-                        Ok(JsonValue::convert_from(&result)?)
+                        Ok(JsonElem::convert_from(&result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -97,12 +93,12 @@ where
                 "logout" => {
                     if let Some(param) = param {
                         let result = device_code_flow::logout(
-                            JsonValue::convert_to::<Provider>(&param)?,
+                            JsonElem::convert_to::<Provider>(&param)?,
                             self.interface.clone(),
                         )
                         .await?;
 
-                        Ok(JsonValue::convert_from(&result)?)
+                        Ok(JsonElem::convert_from(&result)?)
                     } else {
                         Err(OAuth2Error::new(
                             ErrorCodes::InvalidParameters,
@@ -116,7 +112,7 @@ where
         .await
         .map_err(|e| {
             log::error!("{e:?}");
-            Error::new(JsonValue::String(e.to_string()))
+            Error::new(JsonElem::String(e.to_string()))
         })
     }
 }

@@ -16,7 +16,7 @@ use oauth2::{
     HttpResponse, Scope, StandardTokenResponse, TokenUrl,
 };
 
-use ipc_client::client::message::JsonValue;
+use json_elem::jsonelem::JsonElem;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
@@ -284,7 +284,7 @@ where
                     Ok(response) => {
                         let body = String::from_utf8_lossy(response.body.as_slice());
                         task_channel
-                            .send(TaskMessage::SendEvent(JsonValue::String(body.to_string())))
+                            .send(TaskMessage::SendEvent(JsonElem::String(body.to_string())))
                             .unwrap_or_else(|e| {
                                 log::error!("{:?}", e);
                             });
@@ -303,23 +303,23 @@ where
                 let mut token_keeper = TokenKeeper::from(token);
                 token_keeper.set_directory(token_dir);
                 if let Err(err) = token_keeper.save(&token_file_clone) {
-                    JsonValue::convert_from(&err).unwrap_or_else(|e| {
+                    JsonElem::convert_from(&err).unwrap_or_else(|e| {
                         let mut error_hash = HashMap::new();
-                        error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
-                        JsonValue::HashMap(error_hash)
+                        error_hash.insert("error".to_string(), JsonElem::String(e.to_string()));
+                        JsonElem::HashMap(error_hash)
                     })
                 } else {
-                    JsonValue::convert_from(&token_keeper).unwrap_or_else(|e| {
+                    JsonElem::convert_from(&token_keeper).unwrap_or_else(|e| {
                         let mut error_hash = HashMap::new();
-                        error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
-                        JsonValue::HashMap(error_hash)
+                        error_hash.insert("error".to_string(), JsonElem::String(e.to_string()));
+                        JsonElem::HashMap(error_hash)
                     })
                 }
             }
-            Err(err) => JsonValue::convert_from(&err).unwrap_or_else(|e| {
+            Err(err) => JsonElem::convert_from(&err).unwrap_or_else(|e| {
                 let mut error_hash = HashMap::new();
-                error_hash.insert("error".to_string(), JsonValue::String(e.to_string()));
-                JsonValue::HashMap(error_hash)
+                error_hash.insert("error".to_string(), JsonElem::String(e.to_string()));
+                JsonElem::HashMap(error_hash)
             }),
         };
 

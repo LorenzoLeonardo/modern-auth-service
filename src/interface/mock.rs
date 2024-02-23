@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use async_trait::async_trait;
 use curl_http_client::{collector::Collector, error::Error};
 use http::{HeaderMap, StatusCode};
-use ipc_client::client::message::JsonValue;
+use json_elem::jsonelem::JsonElem;
 use oauth2::{HttpRequest, HttpResponse};
 use tempfile::TempDir;
 
@@ -27,7 +27,7 @@ impl Interface for Mock {
     async fn send_event(
         &self,
         _event: &str,
-        _result: JsonValue,
+        _result: JsonElem,
     ) -> Result<(), ipc_client::client::error::Error> {
         Ok(())
     }

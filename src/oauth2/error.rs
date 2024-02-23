@@ -161,6 +161,12 @@ impl From<ipc_client::client::error::Error> for OAuth2Error {
     }
 }
 
+impl From<json_elem::error::Error> for OAuth2Error {
+    fn from(e: json_elem::error::Error) -> Self {
+        OAuth2Error::new(ErrorCodes::SerdeJsonParseError, format!("{:?}", e))
+    }
+}
+
 impl std::error::Error for OAuth2Error {}
 
 impl Display for OAuth2Error {

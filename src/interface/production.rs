@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 use curl_http_client::{collector::Collector, error::Error};
 use directories::UserDirs;
-use ipc_client::client::{connector::Connector, message::JsonValue};
+use ipc_client::client::connector::Connector;
+use json_elem::jsonelem::JsonElem;
 use oauth2::{HttpRequest, HttpResponse};
 
 use crate::oauth2::error::{ErrorCodes, OAuth2Error};
@@ -30,7 +31,7 @@ impl Interface for Production {
     async fn send_event(
         &self,
         event: &str,
-        result: JsonValue,
+        result: JsonElem,
     ) -> Result<(), ipc_client::client::error::Error> {
         self.connector.send_event(event, result).await
     }

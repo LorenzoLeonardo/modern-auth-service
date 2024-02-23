@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use ipc_client::client::message::JsonValue;
+use json_elem::jsonelem::JsonElem;
 use tokio::{
     sync::{mpsc::UnboundedReceiver, oneshot},
     task::JoinHandle,
@@ -13,7 +13,7 @@ pub enum TaskMessage {
     Add(PathBuf, JoinHandle<()>),
     Check(PathBuf, oneshot::Sender<bool>),
     PollingDone(PathBuf),
-    SendEvent(JsonValue),
+    SendEvent(JsonElem),
     Quit,
 }
 

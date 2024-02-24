@@ -106,7 +106,11 @@ where
     fn from(e: RequestTokenError<E, StandardErrorResponse<O>>) -> Self {
         match e {
             RequestTokenError::ServerResponse(err) => {
-                OAuth2Error::new(ErrorCodes::from(err.clone()), format!("{:?}", err))
+                let desc = err
+                    .error_description()
+                    .map(|val| val.to_owned())
+                    .unwrap_or_else(|| String::new());
+                OAuth2Error::new(ErrorCodes::from(err.clone()), desc)
             }
             RequestTokenError::Request(err) => {
                 OAuth2Error::new(ErrorCodes::RequestError, err.to_string())

@@ -1,5 +1,6 @@
 // Standard libraries
 use std::fmt::{Debug, Display};
+use std::marker::PhantomData;
 use std::{error::Error, str::FromStr};
 
 use curl_http_client::collector::Collector;
@@ -54,6 +55,14 @@ pub enum ErrorCodes {
     ChannelError,
     IpcClientError,
     OtherError,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DeviceCodeCloudError {
+    pub error: ErrorCodes,
+    pub error_description: String,
+    #[serde(skip)]
+    _others: PhantomData<()>,
 }
 
 impl From<String> for ErrorCodes {
@@ -168,6 +177,12 @@ impl From<ipc_client::client::error::Error> for OAuth2Error {
 impl From<json_elem::error::Error> for OAuth2Error {
     fn from(e: json_elem::error::Error) -> Self {
         OAuth2Error::new(ErrorCodes::SerdeJsonParseError, format!("{:?}", e))
+    }
+}
+
+impl From<DeviceCodeCloudError> for OAuth2Error {
+    fn from(value: DeviceCodeCloudError) -> Self {
+        OAuth2Error::new(value.error, value.error_description)
     }
 }
 

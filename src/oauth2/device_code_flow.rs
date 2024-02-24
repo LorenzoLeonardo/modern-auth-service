@@ -23,7 +23,7 @@ use tokio::sync::{mpsc::UnboundedSender, oneshot};
 // My crates
 use crate::{
     interface::Interface,
-    oauth2::{provider::Provider, token_keeper::TokenKeeper},
+    oauth2::{error::DeviceCodeCloudError, provider::Provider, token_keeper::TokenKeeper},
 };
 use crate::{
     oauth2::error::{ErrorCodes, OAuth2Error, OAuth2Result},
@@ -282,12 +282,27 @@ where
                 let response = interface.http_request(request).await;
                 match response {
                     Ok(response) => {
-                        let body = String::from_utf8_lossy(response.body.as_slice());
-                        task_channel
-                            .send(TaskMessage::SendEvent(JsonElem::String(body.to_string())))
-                            .unwrap_or_else(|e| {
-                                log::error!("{:?}", e);
-                            });
+                        if let Ok(cloud_err) =
+                            serde_json::from_slice::<DeviceCodeCloudError>(response.body.as_slice())
+                        {
+                            let cloud_err = OAuth2Error::from(cloud_err);
+
+                            let cloud_err =
+                                JsonElem::convert_from(&cloud_err).unwrap_or_else(|e| {
+                                    let mut error_hash = HashMap::new();
+                                    error_hash.insert(
+                                        "error".to_string(),
+                                        JsonElem::String(e.to_string()),
+                                    );
+                                    JsonElem::HashMap(error_hash)
+                                });
+
+                            task_channel
+                                .send(TaskMessage::SendEvent(cloud_err))
+                                .unwrap_or_else(|e| {
+                                    log::error!("{:?}", e);
+                                });
+                        }
                         Ok(response)
                     }
                     Err(err) => {

@@ -118,7 +118,7 @@ where
                 let desc = err
                     .error_description()
                     .map(|val| val.to_owned())
-                    .unwrap_or_else(|| String::new());
+                    .unwrap_or_else(String::new);
                 OAuth2Error::new(ErrorCodes::from(err.clone()), desc)
             }
             RequestTokenError::Request(err) => {

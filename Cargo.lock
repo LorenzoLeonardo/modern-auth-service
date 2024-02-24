@@ -122,9 +122,9 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "cc"
-version = "1.0.86"
+version = "1.0.87"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f9fa1897e4325be0d68d48df6aa1a71ac2ed4d27723887e7754192705350730"
+checksum = "3286b845d0fccbdd15af433f61c5970e711987036cb468f437ff6badd70f4e24"
 
 [[package]]
 name = "cfg-if"
@@ -556,8 +556,8 @@ dependencies = [
 
 [[package]]
 name = "ipc-server"
-version = "0.1.9"
-source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#7b1ac6c44b3314aff231608a38352f6c642e7a23"
+version = "0.1.10"
+source = "git+https://github.com/LorenzoLeonardo/ipc-server.git?branch=master#2f73b51f2794c35cbb12ae8e009c7cc064f813b5"
 dependencies = [
  "async-trait",
  "chrono",
@@ -567,8 +567,8 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "strum 0.25.0",
- "strum_macros 0.25.3",
+ "strum",
+ "strum_macros",
  "tokio",
 ]
 
@@ -689,7 +689,7 @@ dependencies = [
 
 [[package]]
 name = "modern-auth-service"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "async-curl",
  "async-trait",
@@ -706,8 +706,8 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "strum 0.26.1",
- "strum_macros 0.26.1",
+ "strum",
+ "strum_macros",
  "tempfile",
  "thiserror",
  "tokio",
@@ -1161,31 +1161,9 @@ checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 
 [[package]]
 name = "strum"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
-dependencies = [
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "strum"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "723b93e8addf9aa965ebe2d11da6d7540fa2283fcea14b3371ff055f7ba13f5f"
-
-[[package]]
-name = "strum_macros"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.50",
-]
 
 [[package]]
 name = "strum_macros"

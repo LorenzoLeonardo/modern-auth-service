@@ -53,7 +53,7 @@ pub enum ErrorCodes {
     HttpError,
     CurlError,
     ChannelError,
-    IpcClientError,
+    RemoteClient,
     OtherError,
 }
 
@@ -168,9 +168,9 @@ impl From<SendError<TaskMessage>> for OAuth2Error {
     }
 }
 
-impl From<ipc_client::client::error::Error> for OAuth2Error {
-    fn from(e: ipc_client::client::error::Error) -> Self {
-        OAuth2Error::new(ErrorCodes::IpcClientError, format!("{:?}", e))
+impl From<remote_call::RemoteError> for OAuth2Error {
+    fn from(e: remote_call::RemoteError) -> Self {
+        OAuth2Error::new(ErrorCodes::RemoteClient, format!("{:?}", e))
     }
 }
 

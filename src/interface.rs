@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use curl_http_client::collector::Collector;
 use json_elem::jsonelem::JsonElem;
 use oauth2::{HttpRequest, HttpResponse};
+use remote_call::RemoteError;
 
 #[async_trait]
 pub trait Interface {
@@ -18,9 +19,5 @@ pub trait Interface {
         &self,
         request: HttpRequest,
     ) -> Result<HttpResponse, curl_http_client::error::Error<Collector>>;
-    async fn send_event(
-        &self,
-        event: &str,
-        result: JsonElem,
-    ) -> Result<(), ipc_client::client::error::Error>;
+    async fn send_event(&self, event: &str, result: JsonElem) -> Result<(), RemoteError>;
 }

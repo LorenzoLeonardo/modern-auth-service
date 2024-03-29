@@ -7,8 +7,7 @@ mod shared_object;
 mod task_manager;
 
 use interface::production::Production;
-use ipc_client::client::{connector::Connector, shared_object::ObjectDispatcher};
-use ipc_client::ENV_LOGGER;
+use remote_call::{logger::ENV_LOGGER, Connector, SharedObjectDispatcher};
 
 use oauth2::error::OAuth2Result;
 
@@ -58,7 +57,7 @@ async fn main() -> OAuth2Result<()> {
 
     let (tx, rx) = unbounded_channel();
 
-    let mut shared = ObjectDispatcher::new().await.unwrap();
+    let mut shared = SharedObjectDispatcher::new().await.unwrap();
     let connector = Connector::connect().await.unwrap();
     let interface = Production::new(connector)?;
 

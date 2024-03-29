@@ -26,7 +26,7 @@ thiserror = "1.0"
 tokio = { version = "1.36", features = ["rt"] }
 
 # My dependencies
-ipc-server = {git = "https://github.com/LorenzoLeonardo/ipc-server.git", branch = "master"}
+remote-call = {git = "https://github.com/LorenzoLeonardo/remote-call.git", branch = "master"}
 
 [dev-dependencies]
 tempfile = "3.10"

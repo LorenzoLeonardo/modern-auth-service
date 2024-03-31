@@ -45,10 +45,10 @@ where
                     self.tx.clone(),
                 )
                 .await
+                .map(|result| JsonElem::convert_from(&result))
+                .unwrap_or_else(|result| JsonElem::convert_from(&result))
                 .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?;
-
-                Ok(JsonElem::convert_from(&result)
-                    .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?)
+                Ok(result)
             }
             "cancel" => {
                 let result = device_code_flow::cancel(
@@ -57,10 +57,10 @@ where
                     self.tx.clone(),
                 )
                 .await
+                .map(|result| JsonElem::convert_from(&result))
+                .unwrap_or_else(|result| JsonElem::convert_from(&result))
                 .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?;
-
-                Ok(JsonElem::convert_from(&result)
-                    .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?)
+                Ok(result)
             }
             "requestToken" => {
                 let result = device_code_flow::request_token(
@@ -69,10 +69,10 @@ where
                     self.interface.clone(),
                 )
                 .await
+                .map(|result| JsonElem::convert_from(&result))
+                .unwrap_or_else(|result| JsonElem::convert_from(&result))
                 .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?;
-
-                Ok(JsonElem::convert_from(&result)
-                    .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?)
+                Ok(result)
             }
             "logout" => {
                 let result = device_code_flow::logout(
@@ -81,12 +81,15 @@ where
                     self.interface.clone(),
                 )
                 .await
+                .map(|result| JsonElem::convert_from(&result))
+                .unwrap_or_else(|result| JsonElem::convert_from(&result))
                 .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?;
-
-                Ok(JsonElem::convert_from(&result)
-                    .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?)
+                Ok(result)
             }
-            _ => todo!(),
+            _ => Err(RemoteError::new(JsonElem::String(format!(
+                "{} method not found.",
+                method
+            )))),
         }
     }
 }

@@ -23,7 +23,7 @@ serde_json = "1.0"
 strum = "0.26"
 strum_macros = "0.26"
 thiserror = "1.0"
-tokio = { version = "1.36", features = ["rt"] }
+tokio = { version = "1.37", features = ["rt"] }
 
 # My dependencies
 remote-call = {git = "https://github.com/LorenzoLeonardo/remote-call.git", branch = "master"}

@@ -9,7 +9,7 @@ mod task_manager;
 use interface::production::Production;
 use remote_call::{logger::ENV_LOGGER, Connector, Error, SharedObjectDispatcher};
 
-use oauth2::error::OAuth2Result;
+use oauth2::error::{OAuth2Error, OAuth2Result};
 
 use shared_object::DeviceCodeFlowObject;
 use task_manager::TaskManager;
@@ -62,27 +62,38 @@ async fn main() -> OAuth2Result<()> {
 
     let (tx, rx) = unbounded_channel();
 
-    let mut shared = SharedObjectDispatcher::new().await.unwrap();
-    let connector = Connector::connect().await.unwrap();
-    let interface = Production::new(connector)?;
+    match initialize().await {
+        Ok((mut shared, interface)) => {
+            let object = DeviceCodeFlowObject::new(interface.clone(), tx.clone());
 
-    let object = DeviceCodeFlowObject::new(interface.clone(), tx.clone());
+            shared
+                .register_object("oauth2.device.code.flow", Box::new(object))
+                .await
+                .unwrap();
 
-    shared
-        .register_object("oauth2.device.code.flow", Box::new(object))
-        .await
-        .unwrap();
+            // Handle the spawned SharedObject, if something happens to the server, we must exist gracefully.
+            let spawn = shared.spawn().await;
+            handle_spawn_result(spawn, tx).await;
 
-    // Handle the spawned SharedObject, if something happens to the server, we must exist gracefully.
-    let spawn = shared.spawn().await;
-    handle_spawn_result(spawn, tx).await;
+            let mut task = TaskManager::new(rx);
 
-    let mut task = TaskManager::new(rx);
-
-    task.run(interface).await;
+            task.run(interface).await;
+        }
+        Err(err) => {
+            log::error!("{}", err.to_string());
+        }
+    }
 
     log::info!("Stopping modern-auth-service v.{}", version);
+
     Ok(())
+}
+
+async fn initialize() -> Result<(SharedObjectDispatcher, Production), OAuth2Error> {
+    let shared = SharedObjectDispatcher::new().await?;
+    let connector = Connector::connect().await?;
+    let interface = Production::new(connector)?;
+    Ok((shared, interface))
 }
 
 async fn handle_spawn_result(
@@ -93,16 +104,16 @@ async fn handle_spawn_result(
         match spawn.await {
             Ok(result) => {
                 if let Err(err) = result {
-                    log::error!("{:?}", err);
+                    log::error!("{}", err.to_string());
                     tx.send(TaskMessage::Quit).unwrap_or_else(|err| {
-                        log::error!("{:?}", err);
+                        log::error!("{}", err.to_string());
                     });
                 }
             }
             Err(err) => {
-                log::error!("{:?}", err);
+                log::error!("{}", err.to_string());
                 tx.send(TaskMessage::Quit).unwrap_or_else(|err| {
-                    log::error!("{:?}", err);
+                    log::error!("{}", err.to_string());
                 });
             }
         }

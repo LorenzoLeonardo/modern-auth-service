@@ -170,13 +170,13 @@ impl From<SendError<TaskMessage>> for OAuth2Error {
 
 impl From<remote_call::RemoteError> for OAuth2Error {
     fn from(e: remote_call::RemoteError) -> Self {
-        OAuth2Error::new(ErrorCodes::RemoteClient, format!("{:?}", e))
+        OAuth2Error::new(ErrorCodes::RemoteClient, e.to_string())
     }
 }
 
 impl From<json_elem::error::Error> for OAuth2Error {
     fn from(e: json_elem::error::Error) -> Self {
-        OAuth2Error::new(ErrorCodes::SerdeJsonParseError, format!("{:?}", e))
+        OAuth2Error::new(ErrorCodes::SerdeJsonParseError, format!("{}", e))
     }
 }
 
@@ -190,7 +190,7 @@ impl std::error::Error for OAuth2Error {}
 
 impl Display for OAuth2Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.error_code.as_ref(), self.error_code_desc)
+        write!(f, "{}", self.error_code_desc)
     }
 }
 

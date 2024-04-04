@@ -7,13 +7,18 @@ mod shared_object;
 mod task_manager;
 
 use interface::production::Production;
-use remote_call::{logger::ENV_LOGGER, Connector, SharedObjectDispatcher};
+use remote_call::{logger::ENV_LOGGER, Connector, Error, SharedObjectDispatcher};
 
 use oauth2::error::OAuth2Result;
 
 use shared_object::DeviceCodeFlowObject;
 use task_manager::TaskManager;
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::{
+    sync::mpsc::{unbounded_channel, UnboundedSender},
+    task::JoinHandle,
+};
+
+use crate::task_manager::TaskMessage;
 
 pub fn setup_logger() {
     let level = std::env::var(ENV_LOGGER)
@@ -61,14 +66,16 @@ async fn main() -> OAuth2Result<()> {
     let connector = Connector::connect().await.unwrap();
     let interface = Production::new(connector)?;
 
-    let object = DeviceCodeFlowObject::new(interface.clone(), tx);
+    let object = DeviceCodeFlowObject::new(interface.clone(), tx.clone());
 
     shared
         .register_object("oauth2.device.code.flow", Box::new(object))
         .await
         .unwrap();
 
-    let _r = shared.spawn().await;
+    // Handle the spawned SharedObject, if something happens to the server, we must exist gracefully.
+    let spawn = shared.spawn().await;
+    handle_spawn_result(spawn, tx).await;
 
     let mut task = TaskManager::new(rx);
 
@@ -76,4 +83,28 @@ async fn main() -> OAuth2Result<()> {
 
     log::info!("Stopping modern-auth-service v.{}", version);
     Ok(())
+}
+
+async fn handle_spawn_result(
+    spawn: JoinHandle<Result<(), Error>>,
+    tx: UnboundedSender<TaskMessage>,
+) {
+    tokio::spawn(async move {
+        match spawn.await {
+            Ok(result) => {
+                if let Err(err) = result {
+                    log::error!("{:?}", err);
+                    tx.send(TaskMessage::Quit).unwrap_or_else(|err| {
+                        log::error!("{:?}", err);
+                    });
+                }
+            }
+            Err(err) => {
+                log::error!("{:?}", err);
+                tx.send(TaskMessage::Quit).unwrap_or_else(|err| {
+                    log::error!("{:?}", err);
+                });
+            }
+        }
+    });
 }

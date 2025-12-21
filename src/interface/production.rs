@@ -1,21 +1,22 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use curl_http_client::{collector::Collector, error::Error};
 use directories::UserDirs;
-use json_elem::jsonelem::JsonElem;
+use ipc_broker::client::IPCClient;
 use oauth2::{HttpRequest, HttpResponse};
-use remote_call::{Connector, RemoteError};
+use serde_json::Value;
 
-use crate::oauth2::error::{ErrorCodes, OAuth2Error};
-
-use super::{curl::Curl, Interface};
+use crate::interface::Interface;
+use crate::{
+    http_client::HttpClient,
+    oauth2::error::{ErrorCodes, OAuth2Error},
+};
 
 #[derive(Clone)]
 pub struct Production {
     token_directory: PathBuf,
-    curl: Curl,
-    connector: Connector,
+    http_client: HttpClient,
+    connector: IPCClient,
 }
 
 #[async_trait]
@@ -24,17 +25,20 @@ impl Interface for Production {
         self.token_directory.clone()
     }
 
-    async fn http_request(&self, request: HttpRequest) -> Result<HttpResponse, Error<Collector>> {
-        self.curl.send(request).await
+    async fn http_request(&self, request: HttpRequest) -> Result<HttpResponse, OAuth2Error> {
+        match &self.http_client {
+            HttpClient::Curl(curl) => curl.send(request).await,
+            HttpClient::Reqwest(reqwest) => reqwest.send(request).await,
+        }
     }
 
-    async fn send_event(&self, event: &str, result: JsonElem) -> Result<(), RemoteError> {
-        self.connector.send_event(event, result).await
+    async fn send_event(&self, object: &str, event: &str, result: &Value) -> std::io::Result<()> {
+        self.connector.publish(object, event, result).await
     }
 }
 
 impl Production {
-    pub fn new(connector: Connector) -> Result<Self, OAuth2Error> {
+    pub fn new(connector: IPCClient, http_client: HttpClient) -> Result<Self, OAuth2Error> {
         let token_directory = UserDirs::new().ok_or(OAuth2Error::new(
             ErrorCodes::DirectoryError,
             "No valid directory".to_string(),
@@ -45,7 +49,7 @@ impl Production {
 
         Ok(Self {
             token_directory,
-            curl: Curl::new(),
+            http_client,
             connector,
         })
     }

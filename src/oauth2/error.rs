@@ -5,6 +5,7 @@ use std::{error::Error, str::FromStr};
 
 use curl_http_client::collector::Collector;
 use http::header::InvalidHeaderValue;
+use json_result::r#enum::JsonResult;
 use log::SetLoggerError;
 // 3rd party crates
 use oauth2::{
@@ -13,6 +14,7 @@ use oauth2::{
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString};
 use tokio::sync::mpsc::error::SendError;
+use tokio::task::JoinError;
 
 use crate::task_manager::TaskMessage;
 
@@ -52,6 +54,7 @@ pub enum ErrorCodes {
     DirectoryError,
     HttpError,
     CurlError,
+    ReqwestError,
     ChannelError,
     RemoteClient,
     OtherError,
@@ -86,6 +89,18 @@ impl OAuth2Error {
     }
 }
 
+impl From<JoinError> for OAuth2Error {
+    fn from(e: JoinError) -> Self {
+        OAuth2Error::new(ErrorCodes::OtherError, e.to_string())
+    }
+}
+
+impl From<OAuth2Error> for JsonResult<(), OAuth2Error> {
+    fn from(err: OAuth2Error) -> JsonResult<(), OAuth2Error> {
+        JsonResult::Err(err)
+    }
+}
+
 impl From<ConfigurationError> for OAuth2Error {
     fn from(e: ConfigurationError) -> Self {
         OAuth2Error::new(ErrorCodes::ConfigurationError, e.to_string())
@@ -110,7 +125,7 @@ where
 impl<E, O> From<RequestTokenError<E, StandardErrorResponse<O>>> for OAuth2Error
 where
     E: Error + 'static,
-    O: ErrorResponseType + 'static + ToString + Clone,
+    O: ErrorResponseType + 'static + ToString + Clone + std::fmt::Display,
 {
     fn from(e: RequestTokenError<E, StandardErrorResponse<O>>) -> Self {
         match e {
@@ -156,6 +171,12 @@ impl From<curl_http_client::error::Error<Collector>> for OAuth2Error {
     }
 }
 
+impl From<reqwest::Error> for OAuth2Error {
+    fn from(e: reqwest::Error) -> Self {
+        OAuth2Error::new(ErrorCodes::ReqwestError, e.to_string())
+    }
+}
+
 impl From<InvalidHeaderValue> for OAuth2Error {
     fn from(e: InvalidHeaderValue) -> Self {
         OAuth2Error::new(ErrorCodes::HttpError, e.to_string())
@@ -168,21 +189,15 @@ impl From<SendError<TaskMessage>> for OAuth2Error {
     }
 }
 
-impl From<remote_call::RemoteError> for OAuth2Error {
-    fn from(e: remote_call::RemoteError) -> Self {
-        OAuth2Error::new(ErrorCodes::RemoteClient, e.to_string())
-    }
-}
-
-impl From<json_elem::error::Error> for OAuth2Error {
-    fn from(e: json_elem::error::Error) -> Self {
-        OAuth2Error::new(ErrorCodes::SerdeJsonParseError, format!("{}", e))
-    }
-}
-
 impl From<DeviceCodeCloudError> for OAuth2Error {
     fn from(value: DeviceCodeCloudError) -> Self {
         OAuth2Error::new(value.error, value.error_description)
+    }
+}
+
+impl From<http::Error> for OAuth2Error {
+    fn from(value: http::Error) -> Self {
+        OAuth2Error::new(ErrorCodes::HttpError, value.to_string())
     }
 }
 

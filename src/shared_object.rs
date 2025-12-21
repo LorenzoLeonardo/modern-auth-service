@@ -1,13 +1,13 @@
 use async_trait::async_trait;
 
-use json_elem::jsonelem::JsonElem;
-use remote_call::RemoteError;
-use remote_call::SharedObject;
-
+use ipc_broker::worker::SharedObject;
+use json_result::r#struct::JsonResult;
+use serde_json::Value;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::interface::Interface;
 use crate::oauth2::device_code_flow::{self};
+use crate::oauth2::error::{ErrorCodes, OAuth2Error};
 use crate::oauth2::provider::Provider;
 use crate::task_manager::TaskMessage;
 
@@ -33,63 +33,42 @@ impl<I> SharedObject for DeviceCodeFlowObject<I>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
-    async fn remote_call(&self, method: &str, param: JsonElem) -> Result<JsonElem, RemoteError> {
-        log::trace!("Method: {} Param: {:?}", method, param);
+    async fn call(&self, method: &str, args: &Value) -> Value {
+        log::trace!("Method: {} Param: {:?}", method, args);
+
+        let param: Provider = match serde_json::from_value(args.clone()) {
+            Ok(p) => p,
+            Err(e) => {
+                let e = OAuth2Error::from(e);
+                return JsonResult::<(), OAuth2Error>(Err(e)).into();
+            }
+        };
 
         match method {
             "login" => {
-                let result = device_code_flow::login(
-                    JsonElem::convert_to::<Provider>(&param)
-                        .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?,
-                    self.interface.clone(),
-                    self.tx.clone(),
-                )
-                .await
-                .map(|result| JsonElem::convert_from(&result))
-                .unwrap_or_else(|result| JsonElem::convert_from(&result))
-                .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?;
-                Ok(result)
+                let result =
+                    device_code_flow::login(param, self.interface.clone(), self.tx.clone()).await;
+                JsonResult::from(result).into()
             }
             "cancel" => {
-                let result = device_code_flow::cancel(
-                    JsonElem::convert_to::<Provider>(&param)
-                        .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?,
-                    self.tx.clone(),
-                )
-                .await
-                .map(|result| JsonElem::convert_from(&result))
-                .unwrap_or_else(|result| JsonElem::convert_from(&result))
-                .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?;
-                Ok(result)
+                let result = device_code_flow::cancel(param, self.tx.clone()).await;
+                JsonResult::from(result).into()
             }
             "requestToken" => {
-                let result = device_code_flow::request_token(
-                    JsonElem::convert_to::<Provider>(&param)
-                        .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?,
-                    self.interface.clone(),
-                )
-                .await
-                .map(|result| JsonElem::convert_from(&result))
-                .unwrap_or_else(|result| JsonElem::convert_from(&result))
-                .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?;
-                Ok(result)
+                let result = device_code_flow::request_token(param, self.interface.clone()).await;
+                JsonResult::from(result).into()
             }
             "logout" => {
-                let result = device_code_flow::logout(
-                    JsonElem::convert_to::<Provider>(&param)
-                        .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?,
-                    self.interface.clone(),
-                )
-                .await
-                .map(|result| JsonElem::convert_from(&result))
-                .unwrap_or_else(|result| JsonElem::convert_from(&result))
-                .map_err(|err| RemoteError::new(JsonElem::String(err.to_string())))?;
-                Ok(result)
+                let result = device_code_flow::logout(param, self.interface.clone()).await;
+                JsonResult::from(result).into()
             }
-            _ => Err(RemoteError::new(JsonElem::String(format!(
-                "{} method not found.",
-                method
-            )))),
+            _ => {
+                let e = OAuth2Error::new(
+                    ErrorCodes::OtherError,
+                    format!("{} method not found.", method),
+                );
+                JsonResult::<(), OAuth2Error>(Err(e)).into()
+            }
         }
     }
 }

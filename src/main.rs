@@ -1,3 +1,4 @@
+mod http_client;
 mod interface;
 #[allow(dead_code)]
 mod oauth2;
@@ -5,23 +6,19 @@ mod oauth2;
 mod shared_object;
 #[allow(dead_code)]
 mod task_manager;
-
 use interface::production::Production;
-use remote_call::{logger::ENV_LOGGER, Connector, Error, SharedObjectDispatcher};
 
-use oauth2::error::{OAuth2Error, OAuth2Result};
+use ipc_broker::{client::IPCClient, worker::WorkerBuilder};
+use oauth2::error::OAuth2Result;
 
 use shared_object::DeviceCodeFlowObject;
 use task_manager::TaskManager;
-use tokio::{
-    sync::mpsc::{unbounded_channel, UnboundedSender},
-    task::JoinHandle,
-};
+use tokio::sync::mpsc::unbounded_channel;
 
-use crate::task_manager::TaskMessage;
+use crate::http_client::{curl::Curl, HttpClient};
 
 pub fn setup_logger() {
-    let level = std::env::var(ENV_LOGGER)
+    let level = std::env::var("BROKER_DEBUG")
         .map(|var| match var.to_lowercase().as_str() {
             "trace" => log::LevelFilter::Trace,
             "debug" => log::LevelFilter::Debug,
@@ -61,61 +58,26 @@ async fn main() -> OAuth2Result<()> {
     log::info!("Starting modern-auth-service v.{}", version);
 
     let (tx, rx) = unbounded_channel();
+    let connector = IPCClient::connect().await?;
+    let http_client = HttpClient::Curl(Curl::default());
+    let interface = Production::new(connector, http_client)?;
+    let object = DeviceCodeFlowObject::new(interface.clone(), tx.clone());
 
-    match initialize().await {
-        Ok((mut shared, interface)) => {
-            let object = DeviceCodeFlowObject::new(interface.clone(), tx.clone());
+    let (builder, shutdown) = WorkerBuilder::new()
+        .add("oauth2.device.code.flow", object)
+        .with_graceful_shutdown();
 
-            shared
-                .register_object("oauth2.device.code.flow", Box::new(object))
-                .await
-                .unwrap();
+    let handle = tokio::spawn(async move { builder.spawn().await });
 
-            // Handle the spawned SharedObject, if something happens to the server, we must exist gracefully.
-            let spawn = shared.spawn().await;
-            handle_spawn_result(spawn, tx).await;
+    tokio::spawn(async move {
+        let mut task = TaskManager::new(rx);
 
-            let mut task = TaskManager::new(rx);
+        task.run(interface).await;
+        let _ = shutdown.send(true);
+    });
 
-            task.run(interface).await;
-        }
-        Err(err) => {
-            log::error!("{}", err.to_string());
-        }
-    }
-
+    handle.await??;
     log::info!("Stopping modern-auth-service v.{}", version);
 
     Ok(())
-}
-
-async fn initialize() -> Result<(SharedObjectDispatcher, Production), OAuth2Error> {
-    let shared = SharedObjectDispatcher::new().await?;
-    let connector = Connector::connect().await?;
-    let interface = Production::new(connector)?;
-    Ok((shared, interface))
-}
-
-async fn handle_spawn_result(
-    spawn: JoinHandle<Result<(), Error>>,
-    tx: UnboundedSender<TaskMessage>,
-) {
-    tokio::spawn(async move {
-        match spawn.await {
-            Ok(result) => {
-                if let Err(err) = result {
-                    log::error!("{}", err.to_string());
-                    tx.send(TaskMessage::Quit).unwrap_or_else(|err| {
-                        log::error!("{}", err.to_string());
-                    });
-                }
-            }
-            Err(err) => {
-                log::error!("{}", err.to_string());
-                tx.send(TaskMessage::Quit).unwrap_or_else(|err| {
-                    log::error!("{}", err.to_string());
-                });
-            }
-        }
-    });
 }

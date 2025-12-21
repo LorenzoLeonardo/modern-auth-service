@@ -1,12 +1,11 @@
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
-use curl_http_client::{collector::Collector, error::Error};
-use http::{HeaderMap, StatusCode};
-use json_elem::jsonelem::JsonElem;
 use oauth2::{HttpRequest, HttpResponse};
-use remote_call::RemoteError;
+use serde_json::Value;
 use tempfile::TempDir;
+
+use crate::oauth2::error::OAuth2Error;
 
 use super::Interface;
 
@@ -22,10 +21,10 @@ impl Interface for Mock {
         self.token_directory.path().join("token")
     }
 
-    async fn http_request(&self, _request: HttpRequest) -> Result<HttpResponse, Error<Collector>> {
+    async fn http_request(&self, _request: HttpRequest) -> Result<HttpResponse, OAuth2Error> {
         Ok(self.mock_response.clone())
     }
-    async fn send_event(&self, _event: &str, _result: JsonElem) -> Result<(), RemoteError> {
+    async fn send_event(&self, _obj: &str, _event: &str, _result: &Value) -> std::io::Result<()> {
         Ok(())
     }
 }
@@ -34,11 +33,8 @@ impl Mock {
     pub fn new() -> Self {
         Self {
             token_directory: Arc::new(TempDir::with_prefix_in("tests", ".").unwrap()),
-            mock_response: HttpResponse {
-                status_code: StatusCode::OK,
-                headers: HeaderMap::new(),
-                body: Vec::new(),
-            },
+
+            mock_response: HttpResponse::new(Vec::new()),
         }
     }
 

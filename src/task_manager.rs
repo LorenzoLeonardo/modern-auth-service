@@ -79,8 +79,16 @@ impl TaskManager {
                 }
 
                 _ = tokio::time::sleep_until(last_activity + timeout) => {
-                    log::warn!("No activity for {TIMEOUT} seconds, shutting down");
-                    break;
+                    log::warn!("No activity for {TIMEOUT} seconds, shutting down . . .");
+                    log::warn!("Checking task list if there are still on going polling tasks . . .");
+
+                    if !task_list.is_empty() {
+                        log::warn!("Task list is not empty, cancel shutdown and reset inactivity timer.");
+                        last_activity = Instant::now();
+                    } else {
+                        log::warn!("Task list is empty, exiting now!");
+                        break;
+                    }
                 }
             }
         }

@@ -1,0 +1,13 @@
+[Unit]
+Description=Modern Authentication Service
+After=network-online.target ipc-broker.service
+Wants=network-online.target ipc-broker.service
+
+[Service]
+Environment=HOME=/home/lleonardo
+WorkingDirectory=/home/lleonardo/bin/modern-auth-service
+ExecStart=/home/lleonardo/bin/modern-auth-service/modern-auth-service
+User=lleonardo
+
+[Install]
+WantedBy=multi-user.target

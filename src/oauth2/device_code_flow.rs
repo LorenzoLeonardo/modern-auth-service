@@ -1,29 +1,27 @@
 // Standard libraries
 use std::{
-    collections::HashMap,
     fmt::Display,
-    future::Future,
     path::{Path, PathBuf},
 };
 
 // 3rd party crates
 use async_trait::async_trait;
 use directories::UserDirs;
+use json_result::r#struct::JsonResult;
 use oauth2::{
     basic::{BasicClient, BasicTokenType},
-    devicecode::StandardDeviceAuthorizationResponse,
-    AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, EmptyExtraTokenFields, HttpRequest,
-    HttpResponse, Scope, StandardTokenResponse, TokenUrl,
+    ClientId, ClientSecret, DeviceAuthorizationUrl, EmptyExtraTokenFields, Scope,
+    StandardDeviceAuthorizationResponse, StandardTokenResponse, TokenUrl,
 };
 
-use json_elem::jsonelem::JsonElem;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
 // My crates
 use crate::{
+    http_client::OAuth2Client,
     interface::Interface,
-    oauth2::{error::DeviceCodeCloudError, provider::Provider, token_keeper::TokenKeeper},
+    oauth2::{provider::Provider, token_keeper::TokenKeeper},
 };
 use crate::{
     oauth2::error::{ErrorCodes, OAuth2Error, OAuth2Result},
@@ -32,33 +30,21 @@ use crate::{
 
 #[async_trait]
 pub trait DeviceCodeFlowTrait {
-    async fn request_device_code<
-        F: Future<Output = Result<HttpResponse, RE>> + Send,
-        RE: std::error::Error + 'static + Send,
-        T: Fn(HttpRequest) -> F + Send + Sync,
-    >(
+    async fn request_device_code<I: Interface + Send + Sync + Clone + 'static>(
         &self,
         scopes: Vec<Scope>,
-        async_http_callback: T,
+        interface: I,
     ) -> OAuth2Result<StandardDeviceAuthorizationResponse>;
-    async fn poll_access_token<
-        F: Future<Output = Result<HttpResponse, RE>> + Send,
-        RE: std::error::Error + 'static + Send,
-        T: Fn(HttpRequest) -> F + Send + Sync,
-    >(
+    async fn poll_access_token<I: Interface + Send + Sync + Clone + 'static>(
         &self,
         device_auth_response: StandardDeviceAuthorizationResponse,
-        async_http_callback: T,
+        interface: I,
     ) -> OAuth2Result<StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>>;
-    async fn get_access_token<
-        F: Future<Output = Result<HttpResponse, RE>> + Send,
-        RE: std::error::Error + 'static + Send,
-        T: Fn(HttpRequest) -> F + Send + Sync,
-    >(
+    async fn get_access_token<I: Interface + Send + Sync + Clone + 'static>(
         &self,
         file_directory: &Path,
         file_name: &Path,
-        async_http_callback: T,
+        interface: I,
     ) -> OAuth2Result<TokenKeeper>;
 }
 
@@ -71,57 +57,56 @@ pub struct DeviceCodeFlow {
 
 #[async_trait]
 impl DeviceCodeFlowTrait for DeviceCodeFlow {
-    async fn request_device_code<
-        F: Future<Output = Result<HttpResponse, RE>> + Send,
-        RE: std::error::Error + 'static + Send,
-        T: Fn(HttpRequest) -> F + Send + Sync,
-    >(
+    async fn request_device_code<I: Interface + Send + Sync + Clone + 'static>(
         &self,
         scopes: Vec<Scope>,
-        async_http_callback: T,
+        interface: I,
     ) -> OAuth2Result<StandardDeviceAuthorizationResponse> {
         log::info!(
             "There is no Access token, please login via browser with this link and input the code."
         );
-        let client = self
-            .create_client()?
-            .set_device_authorization_url(self.device_auth_endpoint.to_owned());
-
+        let mut client = BasicClient::new(self.client_id.to_owned());
+        if let Some(client_secret) = self.client_secret.to_owned() {
+            client = client.set_client_secret(client_secret);
+        }
+        let http_client = OAuth2Client::new(interface);
         let device_auth_response = client
-            .exchange_device_code()?
+            .set_auth_type(oauth2::AuthType::RequestBody)
+            .set_token_uri(self.token_endpoint.to_owned())
+            .set_device_authorization_url(self.device_auth_endpoint.to_owned())
+            .exchange_device_code()
             .add_scopes(scopes)
-            .request_async(async_http_callback)
+            .request_async(&http_client)
             .await?;
 
         Ok(device_auth_response)
     }
-    async fn poll_access_token<
-        F: Future<Output = Result<HttpResponse, RE>> + Send,
-        RE: std::error::Error + 'static + Send,
-        T: Fn(HttpRequest) -> F + Send + Sync,
-    >(
+    async fn poll_access_token<I: Interface + Send + Sync + Clone + 'static>(
         &self,
         device_auth_response: StandardDeviceAuthorizationResponse,
-        async_http_callback: T,
+        interface: I,
     ) -> OAuth2Result<StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>> {
-        let client = self.create_client()?;
+        let mut client = BasicClient::new(self.client_id.to_owned());
+        if let Some(client_secret) = self.client_secret.to_owned() {
+            client = client.set_client_secret(client_secret);
+        }
+        let async_http_callback = OAuth2Client::new(interface.clone());
         let token_result = client
+            .set_auth_type(oauth2::AuthType::RequestBody)
+            .set_token_uri(self.token_endpoint.to_owned())
             .exchange_device_access_token(&device_auth_response)
-            .request_async(async_http_callback, tokio::time::sleep, None)
+            .request_async(&async_http_callback, tokio::time::sleep, None)
             .await?;
+
         log::info!("Access token successfuly retrieved from the endpoint.");
         Ok(token_result)
     }
 
-    async fn get_access_token<
-        F: Future<Output = Result<HttpResponse, RE>> + Send,
-        RE: std::error::Error + 'static + Send,
-        T: Fn(HttpRequest) -> F + Send + Sync,
-    >(
+    async fn get_access_token<I: Interface + Send + Sync + Clone + 'static>(
         &self,
         file_directory: &Path,
         file_name: &Path,
-        async_http_callback: T,
+        interface: I,
     ) -> OAuth2Result<TokenKeeper> {
         let mut token_keeper = TokenKeeper::new(file_directory.to_path_buf());
         token_keeper.read(file_name)?;
@@ -132,10 +117,16 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
                     log::info!(
                         "Access token has expired, contacting endpoint to get a new access token."
                     );
-                    let response = self
-                        .create_client()?
+                    let mut client = BasicClient::new(self.client_id.to_owned());
+                    if let Some(client_secret) = self.client_secret.to_owned() {
+                        client = client.set_client_secret(client_secret);
+                    }
+                    let async_http_callback = OAuth2Client::new(interface.clone());
+                    let response = client
+                        .set_auth_type(oauth2::AuthType::RequestBody)
+                        .set_token_uri(self.token_endpoint.to_owned())
                         .exchange_refresh_token(&ref_token)
-                        .request_async(async_http_callback)
+                        .request_async(&async_http_callback)
                         .await;
 
                     match response {
@@ -185,16 +176,6 @@ impl DeviceCodeFlow {
             device_auth_endpoint,
             token_endpoint,
         }
-    }
-
-    fn create_client(&self) -> OAuth2Result<BasicClient> {
-        Ok(BasicClient::new(
-            self.client_id.to_owned(),
-            self.client_secret.to_owned(),
-            AuthUrl::new(self.token_endpoint.to_owned().to_string())?,
-            Some(self.token_endpoint.to_owned()),
-        )
-        .set_auth_type(oauth2::AuthType::RequestBody))
     }
 }
 
@@ -267,9 +248,7 @@ where
     }
 
     let device_auth_response = device_code_flow
-        .request_device_code(provider.scopes, |request| async {
-            interface.http_request(request).await
-        })
+        .request_device_code(provider.scopes, interface.clone())
         .await?;
 
     let result = device_auth_response.clone();
@@ -278,39 +257,7 @@ where
     // Start polling at the background
     let handle = tokio::spawn(async move {
         let result = device_code_flow
-            .poll_access_token(device_auth_response, |request| async {
-                let response = interface.http_request(request).await;
-                match response {
-                    Ok(response) => {
-                        if let Ok(cloud_err) =
-                            serde_json::from_slice::<DeviceCodeCloudError>(response.body.as_slice())
-                        {
-                            let cloud_err = OAuth2Error::from(cloud_err);
-
-                            let cloud_err =
-                                JsonElem::convert_from(&cloud_err).unwrap_or_else(|e| {
-                                    let mut error_hash = HashMap::new();
-                                    error_hash.insert(
-                                        "error".to_string(),
-                                        JsonElem::String(e.to_string()),
-                                    );
-                                    JsonElem::HashMap(error_hash)
-                                });
-
-                            task_channel
-                                .send(TaskMessage::SendEvent(cloud_err))
-                                .unwrap_or_else(|e| {
-                                    log::error!("{:?}", e);
-                                });
-                        }
-                        Ok(response)
-                    }
-                    Err(err) => {
-                        log::trace!("{err:?}");
-                        Err(err)
-                    }
-                }
-            })
+            .poll_access_token(device_auth_response, interface.clone())
             .await;
 
         let value = match result {
@@ -318,31 +265,19 @@ where
                 let mut token_keeper = TokenKeeper::from(token);
                 token_keeper.set_directory(token_dir);
                 if let Err(err) = token_keeper.save(&token_file_clone) {
-                    JsonElem::convert_from(&err).unwrap_or_else(|e| {
-                        let mut error_hash = HashMap::new();
-                        error_hash.insert("error".to_string(), JsonElem::String(e.to_string()));
-                        JsonElem::HashMap(error_hash)
-                    })
+                    JsonResult::<(), OAuth2Error>(Err(err)).into()
                 } else {
-                    JsonElem::convert_from(&token_keeper).unwrap_or_else(|e| {
-                        let mut error_hash = HashMap::new();
-                        error_hash.insert("error".to_string(), JsonElem::String(e.to_string()));
-                        JsonElem::HashMap(error_hash)
-                    })
+                    JsonResult::<TokenKeeper, OAuth2Error>(Ok(token_keeper)).into()
                 }
             }
-            Err(err) => JsonElem::convert_from(&err).unwrap_or_else(|e| {
-                let mut error_hash = HashMap::new();
-                error_hash.insert("error".to_string(), JsonElem::String(e.to_string()));
-                JsonElem::HashMap(error_hash)
-            }),
+            Err(err) => JsonResult::<(), OAuth2Error>(Err(err)).into(),
         };
 
         log::info!("Sending of event . . . .");
         // Sending to event result to the subscribers
-        interface
-            .send_event("oauth2", value)
-            .await
+        // Task is done, removing from the list
+        task_channel
+            .send(TaskMessage::SendEvent(value))
             .unwrap_or_else(|e| {
                 log::error!("{:?}", e);
             });
@@ -391,9 +326,7 @@ where
     );
 
     let token_keeper = device_code_flow
-        .get_access_token(&token_dir, &token_file, |request| async {
-            interface.http_request(request).await
-        })
+        .get_access_token(&token_dir, &token_file, interface.clone())
         .await?;
 
     Ok(token_keeper)

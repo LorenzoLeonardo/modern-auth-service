@@ -5,8 +5,7 @@ use crate::oauth2::provider::Provider;
 use crate::task_manager::{TaskManager, TaskMessage};
 use crate::{interface::mock::Mock, setup_logger};
 
-use http::{HeaderMap, HeaderValue, StatusCode};
-use oauth2::HttpResponse;
+use http::{HeaderMap, HeaderValue, Response, StatusCode};
 use oauth2::{url::Url, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl};
 use tokio::sync::mpsc::unbounded_channel;
 
@@ -48,11 +47,11 @@ async fn test_login() {
             HeaderValue::from_static("application/json; charset=utf-8"),
         );
 
-        let response = HttpResponse {
-            status_code: StatusCode::OK,
-            headers,
-            body,
-        };
+        let response = Response::new(body);
+        let (mut parts, body) = response.into_parts();
+
+        parts.status = StatusCode::OK;
+        let response = Response::from_parts(parts, body);
 
         inner = inner.set_mock_response(response);
         let provider = build_mock_provider();

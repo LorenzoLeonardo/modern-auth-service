@@ -6,27 +6,26 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-curl = "0.3"
+async-curl = "0.5"
 async-trait = "0.1"
 chrono = "0.4"
-curl-http-client = "1.0"
+curl-http-client = "2.5"
 derive-deref-rs = "0.1"
-directories = "5.0"
-fern = "0.6"
-http = "0.2"
-json-elem = "0.1.1"
+directories = "6.0"
+fern = "0.7"
+http = "1.4"
+ipc-broker = "1.1"
+json-result = "0.1.1"
 log = "0.4"
-oauth2 = "4.4"
+oauth2 = "5.0"
+reqwest = "0.12"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-strum = "0.26"
-strum_macros = "0.26"
-thiserror = "1.0"
-tokio = { version = "1.37", features = ["rt"] }
-
-# My dependencies
-remote-call = {git = "https://github.com/LorenzoLeonardo/remote-call.git", branch = "master"}
+strum = "0.27"
+strum_macros = "0.27"
+thiserror = "2.0"
+tokio = { version = "1.48", features = ["rt"] }
 
 [dev-dependencies]
-tempfile = "3.10"
+tempfile = "3.23"

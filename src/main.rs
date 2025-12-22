@@ -17,7 +17,10 @@ use shared_object::DeviceCodeFlowObject;
 use task_manager::TaskManager;
 use tokio::sync::mpsc::unbounded_channel;
 
-use crate::http_client::{curl::Curl, HttpClient};
+use crate::{
+    http_client::{curl::Curl, HttpClient},
+    task_manager::TaskMessage,
+};
 
 pub fn setup_logger() {
     let level = std::env::var("BROKER_DEBUG")
@@ -71,7 +74,7 @@ async fn main() -> OAuth2Result<()> {
 
     let handle = tokio::spawn(async move { builder.spawn().await });
 
-    tokio::spawn(async move {
+    let task_handle = tokio::spawn(async move {
         let mut task = TaskManager::new(rx);
 
         task.run(interface).await;
@@ -79,6 +82,9 @@ async fn main() -> OAuth2Result<()> {
     });
 
     handle.await??;
+
+    let _ = tx.send(TaskMessage::Quit);
+    let _ = task_handle.await;
     log::info!("Stopping modern-auth-service v.{}", version);
 
     Ok(())

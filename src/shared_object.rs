@@ -36,7 +36,10 @@ where
 {
     async fn call(&self, method: &str, args: &Value) -> Value {
         log::trace!("Method: {} Param: {:?}", method, args);
-
+        // Reset inactivity timer
+        if let Err(err) = self.tx.send(TaskMessage::ResetInactivityTimer) {
+            log::error!("{err}");
+        }
         let param: InputParameters = match serde_json::from_value(args.clone()) {
             Ok(p) => p,
             Err(e) => {

@@ -17,6 +17,7 @@ pub enum TaskMessage {
     Check(PathBuf, oneshot::Sender<bool>),
     PollingDone(PathBuf),
     SendEvent(Value),
+    ResetInactivityTimer,
     Quit,
 }
 
@@ -72,6 +73,10 @@ impl TaskManager {
                                 log::error!("{:}", e);
                             });
                         }
+                        TaskMessage::ResetInactivityTimer => {
+                            last_activity = Instant::now();
+                            log::trace!("Activity detected, resetting inactivity timer.");
+                        }
                         TaskMessage::Quit => {
                             break;
                         }
@@ -92,5 +97,6 @@ impl TaskManager {
                 }
             }
         }
+        log::info!("Task manager exited.");
     }
 }

@@ -5,13 +5,15 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-// 3rd party crates
 use oauth2::basic::BasicTokenType;
+// 3rd party crates
 use oauth2::{
     AccessToken, EmptyExtraTokenFields, RefreshToken, StandardTokenResponse, TokenResponse,
 };
+use openidconnect::core::CoreIdToken;
 use serde::{Deserialize, Serialize};
 
+use crate::oauth2::device_code_flow::CustomTokenResponse;
 // My crates
 use crate::oauth2::error::OAuth2Result;
 
@@ -19,6 +21,7 @@ use crate::oauth2::error::OAuth2Result;
 pub struct TokenKeeper {
     pub access_token: AccessToken,
     pub refresh_token: Option<RefreshToken>,
+    pub id_token: Option<CoreIdToken>,
     scopes: Option<Vec<String>>,
     expires_in: Option<Duration>,
     token_receive_time: Duration,
@@ -42,6 +45,31 @@ impl From<StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>> for Toke
         Self {
             access_token: token_response.access_token().to_owned(),
             refresh_token,
+            id_token: None,
+            scopes,
+            expires_in: token_response.expires_in(),
+            token_receive_time: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards"),
+            file_directory: PathBuf::new(),
+        }
+    }
+}
+
+impl From<CustomTokenResponse> for TokenKeeper {
+    fn from(token_response: CustomTokenResponse) -> TokenKeeper {
+        let refresh_token = token_response
+            .refresh_token()
+            .map(|ref_tok| ref_tok.to_owned());
+
+        let scopes = token_response
+            .scopes()
+            .map(|scope| scope.iter().map(|e| e.to_string()).collect());
+
+        Self {
+            access_token: token_response.access_token().to_owned(),
+            refresh_token,
+            id_token: token_response.extra_fields().id_token.to_owned(),
             scopes,
             expires_in: token_response.expires_in(),
             token_receive_time: SystemTime::now()
@@ -61,6 +89,7 @@ impl TokenKeeper {
             expires_in: None,
             token_receive_time: Duration::new(0, 0),
             file_directory,
+            id_token: None,
         }
     }
 

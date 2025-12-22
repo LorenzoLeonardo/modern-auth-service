@@ -11,6 +11,7 @@ use log::SetLoggerError;
 use oauth2::{
     url, ConfigurationError, ErrorResponseType, RequestTokenError, StandardErrorResponse,
 };
+use openidconnect::{ClaimsVerificationError, DiscoveryError};
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString};
 use tokio::sync::mpsc::error::SendError;
@@ -57,6 +58,8 @@ pub enum ErrorCodes {
     ReqwestError,
     ChannelError,
     RemoteClient,
+    ClaimsVerificationError,
+    DiscoveryError,
     OtherError,
 }
 
@@ -198,6 +201,18 @@ impl From<DeviceCodeCloudError> for OAuth2Error {
 impl From<http::Error> for OAuth2Error {
     fn from(value: http::Error) -> Self {
         OAuth2Error::new(ErrorCodes::HttpError, value.to_string())
+    }
+}
+
+impl From<ClaimsVerificationError> for OAuth2Error {
+    fn from(value: ClaimsVerificationError) -> Self {
+        OAuth2Error::new(ErrorCodes::ClaimsVerificationError, value.to_string())
+    }
+}
+
+impl From<DiscoveryError<OAuth2Error>> for OAuth2Error {
+    fn from(value: DiscoveryError<OAuth2Error>) -> Self {
+        OAuth2Error::new(ErrorCodes::DiscoveryError, value.to_string())
     }
 }
 

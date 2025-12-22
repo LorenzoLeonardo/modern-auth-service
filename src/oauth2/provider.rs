@@ -12,14 +12,19 @@ pub struct SmtpPort(pub u16);
 pub struct ProfileUrl(pub Url);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Provider {
+pub struct InputParameters {
     pub process: String,
     pub provider: String,
-    pub authorization_endpoint: AuthUrl,
-    pub token_endpoint: TokenUrl,
-    pub device_auth_endpoint: DeviceAuthorizationUrl,
-    pub scopes: Vec<Scope>,
-    pub client_id: ClientId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization_endpoint: Option<AuthUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_endpoint: Option<TokenUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_auth_endpoint: Option<DeviceAuthorizationUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scopes: Option<Vec<Scope>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<ClientId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<ClientSecret>,
     #[serde(skip_serializing_if = "Option::is_none")]

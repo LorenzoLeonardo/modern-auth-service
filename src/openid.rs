@@ -11,12 +11,12 @@ use crate::{
     interface::Interface,
     oauth2::{
         error::{ErrorCodes, OAuth2Error, OAuth2Result},
-        provider::Provider,
+        provider::InputParameters,
     },
 };
 
 pub async fn verify_id_token<I>(
-    provider: Provider,
+    provider: InputParameters,
     app_nonce: ApplicationNonce,
     interface: I,
 ) -> OAuth2Result<CoreIdTokenClaims>
@@ -28,7 +28,7 @@ where
 
     let id_token = provider.id_token.ok_or(OAuth2Error::new(
         ErrorCodes::ParseError,
-        "no id token supplied".into(),
+        "No ID Token supplied.".into(),
     ))?;
     let unverified_claims = id_token.claims(&verifier, ApplicationNonce::new())?;
 
@@ -42,7 +42,10 @@ where
     let verifier = if let Some(secret) = provider.client_secret {
         log::info!("Has client secret use => CoreIdTokenVerifier::new_confidential_client");
         CoreIdTokenVerifier::new_confidential_client(
-            provider.client_id,
+            provider.client_id.ok_or(OAuth2Error::new(
+                ErrorCodes::ParseError,
+                "No Client ID supplied.".into(),
+            ))?,
             secret,
             url.clone(),
             json_web_key_set.clone(),
@@ -56,7 +59,10 @@ where
     } else {
         log::info!("No client secret use => CoreIdTokenVerifier::new_public_client");
         CoreIdTokenVerifier::new_public_client(
-            provider.client_id,
+            provider.client_id.ok_or(OAuth2Error::new(
+                ErrorCodes::ParseError,
+                "No Client ID supplied.".into(),
+            ))?,
             url.clone(),
             json_web_key_set.clone(),
         )

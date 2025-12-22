@@ -26,7 +26,7 @@ use tokio::sync::{mpsc::UnboundedSender, oneshot};
 use crate::{
     http_client::OAuth2Client,
     interface::Interface,
-    oauth2::{provider::Provider, token_keeper::TokenKeeper},
+    oauth2::{provider::InputParameters, token_keeper::TokenKeeper},
 };
 use crate::{
     oauth2::error::{ErrorCodes, OAuth2Error, OAuth2Result},
@@ -247,12 +247,12 @@ fn make_token_dir() -> Result<PathBuf, OAuth2Error> {
     Ok(directory)
 }
 
-fn make_filename(param: &Provider) -> PathBuf {
+fn make_filename(param: &InputParameters) -> PathBuf {
     PathBuf::from(format!("{}{}DeviceCodeFlow", param.process, param.provider))
 }
 
 pub async fn login<I>(
-    provider: Provider,
+    provider: InputParameters,
     interface: I,
     tx: UnboundedSender<TaskMessage>,
 ) -> Result<StandardDeviceAuthorizationResponse, OAuth2Error>
@@ -265,10 +265,19 @@ where
     let token_file = make_filename(&provider);
 
     let device_code_flow = DeviceCodeFlow::new(
-        provider.client_id,
+        provider.client_id.ok_or(OAuth2Error::new(
+            ErrorCodes::ParseError,
+            "No Client ID supplied.".into(),
+        ))?,
         provider.client_secret,
-        provider.device_auth_endpoint,
-        provider.token_endpoint,
+        provider.device_auth_endpoint.ok_or(OAuth2Error::new(
+            ErrorCodes::ParseError,
+            "No Device Auth URL supplied.".into(),
+        ))?,
+        provider.token_endpoint.ok_or(OAuth2Error::new(
+            ErrorCodes::ParseError,
+            "No Token URL supplied.".into(),
+        ))?,
     );
 
     let (oneshot_tx, oneshot_rx) = oneshot::channel();
@@ -281,7 +290,13 @@ where
     }
 
     let device_auth_response = device_code_flow
-        .request_device_code(provider.scopes, interface.clone())
+        .request_device_code(
+            provider.scopes.ok_or(OAuth2Error::new(
+                ErrorCodes::ParseError,
+                "No Scopes supplied.".into(),
+            ))?,
+            interface.clone(),
+        )
         .await?;
 
     let result = device_auth_response.clone();
@@ -332,7 +347,7 @@ where
 }
 
 pub async fn cancel(
-    provider: Provider,
+    provider: InputParameters,
     tx: UnboundedSender<TaskMessage>,
 ) -> Result<bool, OAuth2Error> {
     log::trace!("cancelLogin({:?})", provider);
@@ -342,7 +357,10 @@ pub async fn cancel(
     Ok(true)
 }
 
-pub async fn request_token<I>(provider: Provider, interface: I) -> Result<TokenKeeper, OAuth2Error>
+pub async fn request_token<I>(
+    provider: InputParameters,
+    interface: I,
+) -> Result<TokenKeeper, OAuth2Error>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {
@@ -352,10 +370,19 @@ where
     let token_file = make_filename(&provider);
 
     let device_code_flow = DeviceCodeFlow::new(
-        provider.client_id,
+        provider.client_id.ok_or(OAuth2Error::new(
+            ErrorCodes::ParseError,
+            "No Client ID supplied.".into(),
+        ))?,
         provider.client_secret,
-        provider.device_auth_endpoint,
-        provider.token_endpoint,
+        provider.device_auth_endpoint.ok_or(OAuth2Error::new(
+            ErrorCodes::ParseError,
+            "No Device Auth URL supplied.".into(),
+        ))?,
+        provider.token_endpoint.ok_or(OAuth2Error::new(
+            ErrorCodes::ParseError,
+            "No Token URL supplied.".into(),
+        ))?,
     );
 
     let token_keeper = device_code_flow
@@ -365,7 +392,7 @@ where
     Ok(token_keeper)
 }
 
-pub async fn logout<I>(provider: Provider, interface: I) -> Result<bool, OAuth2Error>
+pub async fn logout<I>(provider: InputParameters, interface: I) -> Result<bool, OAuth2Error>
 where
     I: Interface + Send + Sync + 'static + Clone,
 {

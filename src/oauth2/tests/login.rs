@@ -27,8 +27,8 @@ fn build_mock_provider() -> InputParameters {
         ]),
         client_id: Some(ClientId::new("64c5d510-4b7e-4a18-8869-89778461c266".into())),
         client_secret: None,
-        process: String::from("Process Name"),
-        provider: String::from("Microsoft"),
+        process: Some(String::from("Process Name")),
+        provider: Some(String::from("Microsoft")),
         id_token: None,
     }
 }

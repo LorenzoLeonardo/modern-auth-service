@@ -247,8 +247,18 @@ fn make_token_dir() -> Result<PathBuf, OAuth2Error> {
     Ok(directory)
 }
 
-fn make_filename(param: &InputParameters) -> PathBuf {
-    PathBuf::from(format!("{}{}DeviceCodeFlow", param.process, param.provider))
+fn make_filename(param: &InputParameters) -> Result<PathBuf, OAuth2Error> {
+    Ok(PathBuf::from(format!(
+        "{}{}DeviceCodeFlow",
+        param.process.clone().ok_or(OAuth2Error::new(
+            ErrorCodes::ParseError,
+            "No Process Name supplied.".into(),
+        ))?,
+        param.provider.clone().ok_or(OAuth2Error::new(
+            ErrorCodes::ParseError,
+            "No Provider Name supplied.".into(),
+        ))?
+    )))
 }
 
 pub async fn login<I>(
@@ -262,7 +272,7 @@ where
     log::trace!("login({:?})", provider);
 
     let token_dir = interface.token_directory();
-    let token_file = make_filename(&provider);
+    let token_file = make_filename(&provider)?;
 
     let device_code_flow = DeviceCodeFlow::new(
         provider.client_id.ok_or(OAuth2Error::new(
@@ -352,7 +362,7 @@ pub async fn cancel(
 ) -> Result<bool, OAuth2Error> {
     log::trace!("cancelLogin({:?})", provider);
 
-    let token_file = make_filename(&provider);
+    let token_file = make_filename(&provider)?;
     tx.send(TaskMessage::Abort(token_file))?;
     Ok(true)
 }
@@ -367,7 +377,7 @@ where
     log::trace!("requestToken({:?})", provider);
 
     let token_dir = interface.token_directory();
-    let token_file = make_filename(&provider);
+    let token_file = make_filename(&provider)?;
 
     let device_code_flow = DeviceCodeFlow::new(
         provider.client_id.ok_or(OAuth2Error::new(
@@ -399,7 +409,7 @@ where
     log::trace!("logout({:?})", provider);
 
     let token_dir = interface.token_directory();
-    let token_file = make_filename(&provider);
+    let token_file = make_filename(&provider)?;
 
     let token_keeper = TokenKeeper::new(token_dir);
 

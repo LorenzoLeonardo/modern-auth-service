@@ -29,6 +29,7 @@ fn build_mock_provider() -> Provider {
         client_secret: None,
         process: String::from("Process Name"),
         provider: String::from("Microsoft"),
+        id_token: None,
     }
 }
 

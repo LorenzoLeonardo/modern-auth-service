@@ -9,6 +9,7 @@ use crate::interface::Interface;
 use crate::oauth2::device_code_flow::{self};
 use crate::oauth2::error::{ErrorCodes, OAuth2Error};
 use crate::oauth2::provider::Provider;
+use crate::openid::{self, ApplicationNonce};
 use crate::task_manager::TaskMessage;
 
 pub struct DeviceCodeFlowObject<I>
@@ -60,6 +61,12 @@ where
             }
             "logout" => {
                 let result = device_code_flow::logout(param, self.interface.clone()).await;
+                JsonResult::from(result).into()
+            }
+            "verifyIDToken" => {
+                let result =
+                    openid::verify_id_token(param, ApplicationNonce::new(), self.interface.clone())
+                        .await;
                 JsonResult::from(result).into()
             }
             _ => {

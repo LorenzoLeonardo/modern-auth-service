@@ -2,10 +2,12 @@ mod http_client;
 mod interface;
 #[allow(dead_code)]
 mod oauth2;
+mod openid;
 #[allow(dead_code)]
 mod shared_object;
 #[allow(dead_code)]
 mod task_manager;
+
 use interface::production::Production;
 
 use ipc_broker::{client::IPCClient, worker::WorkerBuilder};

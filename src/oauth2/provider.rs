@@ -1,4 +1,5 @@
 use oauth2::{url::Url, AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, Scope, TokenUrl};
+use openidconnect::core::CoreIdToken;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Default, Clone)]
@@ -21,4 +22,6 @@ pub struct Provider {
     pub client_id: ClientId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<ClientSecret>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id_token: Option<CoreIdToken>,
 }

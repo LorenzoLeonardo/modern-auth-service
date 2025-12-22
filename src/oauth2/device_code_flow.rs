@@ -9,11 +9,16 @@ use async_trait::async_trait;
 use directories::UserDirs;
 use json_result::r#struct::JsonResult;
 use oauth2::{
-    basic::{BasicClient, BasicTokenType},
-    ClientId, ClientSecret, DeviceAuthorizationUrl, EmptyExtraTokenFields, Scope,
-    StandardDeviceAuthorizationResponse, StandardTokenResponse, TokenUrl,
+    basic::{
+        BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
+        BasicTokenType,
+    },
+    Client, ClientId, ClientSecret, DeviceAuthorizationUrl, EndpointNotSet, ExtraTokenFields,
+    Scope, StandardDeviceAuthorizationResponse, StandardRevocableToken, StandardTokenResponse,
+    TokenUrl,
 };
 
+use openidconnect::core::CoreIdToken;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
@@ -28,6 +33,34 @@ use crate::{
     task_manager::TaskMessage,
 };
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CustomExtraFields {
+    pub id_token: Option<CoreIdToken>,
+}
+
+pub type CustomTokenResponse = StandardTokenResponse<CustomExtraFields, BasicTokenType>;
+
+impl ExtraTokenFields for CustomExtraFields {}
+
+pub type CustomClient<
+    HasAuthUrl = EndpointNotSet,
+    HasDeviceAuthUrl = EndpointNotSet,
+    HasIntrospectionUrl = EndpointNotSet,
+    HasRevocationUrl = EndpointNotSet,
+    HasTokenUrl = EndpointNotSet,
+> = Client<
+    BasicErrorResponse,
+    CustomTokenResponse,
+    BasicTokenIntrospectionResponse,
+    StandardRevocableToken,
+    BasicRevocationErrorResponse,
+    HasAuthUrl,
+    HasDeviceAuthUrl,
+    HasIntrospectionUrl,
+    HasRevocationUrl,
+    HasTokenUrl,
+>;
+
 #[async_trait]
 pub trait DeviceCodeFlowTrait {
     async fn request_device_code<I: Interface + Send + Sync + Clone + 'static>(
@@ -39,7 +72,7 @@ pub trait DeviceCodeFlowTrait {
         &self,
         device_auth_response: StandardDeviceAuthorizationResponse,
         interface: I,
-    ) -> OAuth2Result<StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>>;
+    ) -> OAuth2Result<CustomTokenResponse>;
     async fn get_access_token<I: Interface + Send + Sync + Clone + 'static>(
         &self,
         file_directory: &Path,
@@ -65,7 +98,7 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
         log::info!(
             "There is no Access token, please login via browser with this link and input the code."
         );
-        let mut client = BasicClient::new(self.client_id.to_owned());
+        let mut client = CustomClient::new(self.client_id.to_owned());
         if let Some(client_secret) = self.client_secret.to_owned() {
             client = client.set_client_secret(client_secret);
         }
@@ -85,8 +118,8 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
         &self,
         device_auth_response: StandardDeviceAuthorizationResponse,
         interface: I,
-    ) -> OAuth2Result<StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>> {
-        let mut client = BasicClient::new(self.client_id.to_owned());
+    ) -> OAuth2Result<CustomTokenResponse> {
+        let mut client = CustomClient::new(self.client_id.to_owned());
         if let Some(client_secret) = self.client_secret.to_owned() {
             client = client.set_client_secret(client_secret);
         }
@@ -117,7 +150,7 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
                     log::info!(
                         "Access token has expired, contacting endpoint to get a new access token."
                     );
-                    let mut client = BasicClient::new(self.client_id.to_owned());
+                    let mut client = CustomClient::new(self.client_id.to_owned());
                     if let Some(client_secret) = self.client_secret.to_owned() {
                         client = client.set_client_secret(client_secret);
                     }

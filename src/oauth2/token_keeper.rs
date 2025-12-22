@@ -20,9 +20,13 @@ use crate::oauth2::error::OAuth2Result;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenKeeper {
     pub access_token: AccessToken,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<RefreshToken>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id_token: Option<CoreIdToken>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     scopes: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     expires_in: Option<Duration>,
     token_receive_time: Duration,
     #[serde(skip_serializing)]

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::oauth2::device_code_flow::login;
-use crate::oauth2::provider::Provider;
+use crate::oauth2::provider::InputParameters;
 use crate::task_manager::{TaskManager, TaskMessage};
 use crate::{interface::mock::Mock, setup_logger};
 
@@ -9,23 +9,23 @@ use http::{HeaderMap, HeaderValue, Response, StatusCode};
 use oauth2::{url::Url, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl};
 use tokio::sync::mpsc::unbounded_channel;
 
-fn build_mock_provider() -> Provider {
-    Provider {
-        authorization_endpoint: AuthUrl::from_url(
+fn build_mock_provider() -> InputParameters {
+    InputParameters {
+        authorization_endpoint: Some(AuthUrl::from_url(
             Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/authorize").unwrap(),
-        ),
-        token_endpoint: TokenUrl::from_url(
+        )),
+        token_endpoint: Some(TokenUrl::from_url(
             Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/token").unwrap(),
-        ),
-        device_auth_endpoint: DeviceAuthorizationUrl::from_url(
+        )),
+        device_auth_endpoint: Some(DeviceAuthorizationUrl::from_url(
             Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/devicecode").unwrap(),
-        ),
-        scopes: vec![
+        )),
+        scopes: Some(vec![
             Scope::new("offline_access".into()),
             Scope::new("https://outlook.office.com/SMTP.Send".into()),
             Scope::new("https://outlook.office.com/User.Read".into()),
-        ],
-        client_id: ClientId::new("64c5d510-4b7e-4a18-8869-89778461c266".into()),
+        ]),
+        client_id: Some(ClientId::new("64c5d510-4b7e-4a18-8869-89778461c266".into())),
         client_secret: None,
         process: String::from("Process Name"),
         provider: String::from("Microsoft"),

@@ -8,7 +8,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::interface::Interface;
 use crate::oauth2::device_code_flow::{self};
 use crate::oauth2::error::{ErrorCodes, OAuth2Error};
-use crate::oauth2::provider::Provider;
+use crate::oauth2::provider::InputParameters;
 use crate::openid::{self, ApplicationNonce};
 use crate::task_manager::TaskMessage;
 
@@ -37,7 +37,7 @@ where
     async fn call(&self, method: &str, args: &Value) -> Value {
         log::trace!("Method: {} Param: {:?}", method, args);
 
-        let param: Provider = match serde_json::from_value(args.clone()) {
+        let param: InputParameters = match serde_json::from_value(args.clone()) {
             Ok(p) => p,
             Err(e) => {
                 let e = OAuth2Error::from(e);

@@ -13,9 +13,9 @@ use oauth2::{
         BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
         BasicTokenType,
     },
-    Client, ClientId, ClientSecret, DeviceAuthorizationUrl, EndpointNotSet, ExtraTokenFields,
-    Scope, StandardDeviceAuthorizationResponse, StandardRevocableToken, StandardTokenResponse,
-    TokenUrl,
+    AsyncHttpClient, Client, ClientId, ClientSecret, DeviceAuthorizationUrl, EndpointNotSet,
+    ExtraTokenFields, HttpResponse, Scope, StandardDeviceAuthorizationResponse,
+    StandardRevocableToken, StandardTokenResponse, TokenUrl,
 };
 
 use openidconnect::core::CoreIdToken;
@@ -104,7 +104,7 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
         if let Some(client_secret) = self.client_secret.to_owned() {
             client = client.set_client_secret(client_secret);
         }
-        let http_client = OAuth2Client::new(interface, None);
+        let http_client = OAuth2Client::new(interface);
         let device_auth_response = client
             .set_auth_type(oauth2::AuthType::RequestBody)
             .set_token_uri(self.token_endpoint.to_owned())
@@ -126,12 +126,29 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
         if let Some(client_secret) = self.client_secret.to_owned() {
             client = client.set_client_secret(client_secret);
         }
-        let async_http_callback = OAuth2Client::new(interface.clone(), Some(tx));
+        let async_http_callback = OAuth2Client::new(interface.clone());
+        let task_message = tx.clone();
         let token_result = client
             .set_auth_type(oauth2::AuthType::RequestBody)
             .set_token_uri(self.token_endpoint.to_owned())
             .exchange_device_access_token(&device_auth_response)
-            .request_async(&async_http_callback, tokio::time::sleep, None)
+            .request_async(
+                &|request| {
+                    let async_http_callback = async_http_callback.clone();
+                    let task_message = task_message.clone();
+                    async move {
+                        let result = async_http_callback.call(request).await?;
+
+                        let value: serde_json::Value = serde_json::from_slice(result.body())
+                            .unwrap_or_else(|er| serde_json::json!({"error": er.to_string()}));
+                        let _ = task_message
+                            .send(TaskMessage::SendEvent("token.polling".into(), value));
+                        Ok::<HttpResponse, OAuth2Error>(result)
+                    }
+                },
+                tokio::time::sleep,
+                None,
+            )
             .await?;
 
         log::info!("Access token successfuly retrieved from the endpoint.");
@@ -157,7 +174,7 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
                     if let Some(client_secret) = self.client_secret.to_owned() {
                         client = client.set_client_secret(client_secret);
                     }
-                    let async_http_callback = OAuth2Client::new(interface.clone(), None);
+                    let async_http_callback = OAuth2Client::new(interface.clone());
                     let response = client
                         .set_auth_type(oauth2::AuthType::RequestBody)
                         .set_token_uri(self.token_endpoint.to_owned())

@@ -1232,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "modern-auth-service"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-curl",
  "async-trait",

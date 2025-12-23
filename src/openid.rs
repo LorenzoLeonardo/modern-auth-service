@@ -33,7 +33,7 @@ where
     let unverified_claims = id_token.claims(&verifier, ApplicationNonce::new())?;
 
     let url = unverified_claims.issuer();
-    let aync_http_client = OAuth2Client::new(interface.clone());
+    let aync_http_client = OAuth2Client::new(interface.clone(), None);
     let provider_metadata =
         CoreProviderMetadata::discover_async(url.clone(), &aync_http_client).await?;
 

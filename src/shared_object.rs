@@ -59,7 +59,9 @@ where
                 JsonResult::from(result).into()
             }
             "requestToken" => {
-                let result = device_code_flow::request_token(param, self.interface.clone()).await;
+                let result =
+                    device_code_flow::request_token(param, self.interface.clone(), self.tx.clone())
+                        .await;
                 JsonResult::from(result).into()
             }
             "logout" => {

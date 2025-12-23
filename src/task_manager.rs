@@ -16,7 +16,7 @@ pub enum TaskMessage {
     Add(PathBuf, JoinHandle<()>),
     Check(PathBuf, oneshot::Sender<bool>),
     PollingDone(PathBuf),
-    SendEvent(Value),
+    SendEvent(String, Value),
     ResetInactivityTimer,
     Quit,
 }
@@ -63,13 +63,15 @@ impl TaskManager {
                             });
                         }
                         TaskMessage::PollingDone(key) => {
+                            log::info!("Polling done!");
                             last_activity = Instant::now();
                             task_list.remove(&key);
                             log::trace!("Polling tasks: {}", task_list.len());
                         }
-                        TaskMessage::SendEvent(json) => {
+                        TaskMessage::SendEvent(event, result) => {
                             last_activity = Instant::now();
-                            interface.send_event("oauth2.device.code.flow", "token.ready", &json).await.unwrap_or_else(|e|{
+                            log::info!("Event: {event}");
+                            interface.send_event("oauth2.device.code.flow", &event, &result).await.unwrap_or_else(|e|{
                                 log::error!("{:}", e);
                             });
                         }

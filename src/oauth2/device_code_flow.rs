@@ -124,7 +124,7 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
         if let Some(client_secret) = self.client_secret.to_owned() {
             client = client.set_client_secret(client_secret);
         }
-        let async_http_callback = OAuth2Client::new(interface.clone());
+        let http_client = OAuth2Client::new(interface.clone());
         let task_message = self.tx.clone();
         let token_result = client
             .set_auth_type(oauth2::AuthType::RequestBody)
@@ -132,10 +132,10 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
             .exchange_device_access_token(&device_auth_response)
             .request_async(
                 &|request| {
-                    let async_http_callback = async_http_callback.clone();
+                    let http_client = http_client.clone();
                     let task_message = task_message.clone();
                     async move {
-                        let result = async_http_callback.call(request).await?;
+                        let result = http_client.call(request).await?;
 
                         let value: serde_json::Value = serde_json::from_slice(result.body())
                             .unwrap_or_else(|er| serde_json::json!({"error": er.to_string()}));

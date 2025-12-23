@@ -72,6 +72,7 @@ pub trait DeviceCodeFlowTrait {
         &self,
         device_auth_response: StandardDeviceAuthorizationResponse,
         interface: I,
+        tx: UnboundedSender<TaskMessage>,
     ) -> OAuth2Result<CustomTokenResponse>;
     async fn get_access_token<I: Interface + Send + Sync + Clone + 'static>(
         &self,
@@ -86,6 +87,7 @@ pub struct DeviceCodeFlow {
     client_secret: Option<ClientSecret>,
     device_auth_endpoint: DeviceAuthorizationUrl,
     token_endpoint: TokenUrl,
+    tx: UnboundedSender<TaskMessage>,
 }
 
 #[async_trait]
@@ -102,7 +104,7 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
         if let Some(client_secret) = self.client_secret.to_owned() {
             client = client.set_client_secret(client_secret);
         }
-        let http_client = OAuth2Client::new(interface);
+        let http_client = OAuth2Client::new(interface, None);
         let device_auth_response = client
             .set_auth_type(oauth2::AuthType::RequestBody)
             .set_token_uri(self.token_endpoint.to_owned())
@@ -118,12 +120,13 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
         &self,
         device_auth_response: StandardDeviceAuthorizationResponse,
         interface: I,
+        tx: UnboundedSender<TaskMessage>,
     ) -> OAuth2Result<CustomTokenResponse> {
         let mut client = CustomClient::new(self.client_id.to_owned());
         if let Some(client_secret) = self.client_secret.to_owned() {
             client = client.set_client_secret(client_secret);
         }
-        let async_http_callback = OAuth2Client::new(interface.clone());
+        let async_http_callback = OAuth2Client::new(interface.clone(), Some(tx));
         let token_result = client
             .set_auth_type(oauth2::AuthType::RequestBody)
             .set_token_uri(self.token_endpoint.to_owned())
@@ -154,7 +157,7 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
                     if let Some(client_secret) = self.client_secret.to_owned() {
                         client = client.set_client_secret(client_secret);
                     }
-                    let async_http_callback = OAuth2Client::new(interface.clone());
+                    let async_http_callback = OAuth2Client::new(interface.clone(), None);
                     let response = client
                         .set_auth_type(oauth2::AuthType::RequestBody)
                         .set_token_uri(self.token_endpoint.to_owned())
@@ -202,12 +205,14 @@ impl DeviceCodeFlow {
         client_secret: Option<ClientSecret>,
         device_auth_endpoint: DeviceAuthorizationUrl,
         token_endpoint: TokenUrl,
+        tx: UnboundedSender<TaskMessage>,
     ) -> Self {
         Self {
             client_id,
             client_secret,
             device_auth_endpoint,
             token_endpoint,
+            tx,
         }
     }
 }
@@ -288,6 +293,7 @@ where
             ErrorCodes::ParseError,
             "No Token URL supplied.".into(),
         ))?,
+        tx.clone(),
     );
 
     let (oneshot_tx, oneshot_rx) = oneshot::channel();
@@ -315,7 +321,11 @@ where
     // Start polling at the background
     let handle = tokio::spawn(async move {
         let result = device_code_flow
-            .poll_access_token(device_auth_response, interface.clone())
+            .poll_access_token(
+                device_auth_response,
+                interface.clone(),
+                task_channel.clone(),
+            )
             .await;
 
         let value = match result {
@@ -328,14 +338,17 @@ where
                     JsonResult::<TokenKeeper, OAuth2Error>(Ok(token_keeper)).into()
                 }
             }
-            Err(err) => JsonResult::<(), OAuth2Error>(Err(err)).into(),
+            Err(err) => {
+                log::error!("{err}");
+                JsonResult::<(), OAuth2Error>(Err(err)).into()
+            }
         };
 
         log::info!("Sending of event . . . .");
         // Sending to event result to the subscribers
         // Task is done, removing from the list
         task_channel
-            .send(TaskMessage::SendEvent(value))
+            .send(TaskMessage::SendEvent("token.ready".into(), value))
             .unwrap_or_else(|e| {
                 log::error!("{:?}", e);
             });
@@ -370,6 +383,7 @@ pub async fn cancel(
 pub async fn request_token<I>(
     provider: InputParameters,
     interface: I,
+    tx: UnboundedSender<TaskMessage>,
 ) -> Result<TokenKeeper, OAuth2Error>
 where
     I: Interface + Send + Sync + 'static + Clone,
@@ -393,6 +407,7 @@ where
             ErrorCodes::ParseError,
             "No Token URL supplied.".into(),
         ))?,
+        tx,
     );
 
     let token_keeper = device_code_flow

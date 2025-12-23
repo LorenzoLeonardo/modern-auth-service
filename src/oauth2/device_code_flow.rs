@@ -72,7 +72,6 @@ pub trait DeviceCodeFlowTrait {
         &self,
         device_auth_response: StandardDeviceAuthorizationResponse,
         interface: I,
-        tx: UnboundedSender<TaskMessage>,
     ) -> OAuth2Result<CustomTokenResponse>;
     async fn get_access_token<I: Interface + Send + Sync + Clone + 'static>(
         &self,
@@ -120,14 +119,13 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
         &self,
         device_auth_response: StandardDeviceAuthorizationResponse,
         interface: I,
-        tx: UnboundedSender<TaskMessage>,
     ) -> OAuth2Result<CustomTokenResponse> {
         let mut client = CustomClient::new(self.client_id.to_owned());
         if let Some(client_secret) = self.client_secret.to_owned() {
             client = client.set_client_secret(client_secret);
         }
         let async_http_callback = OAuth2Client::new(interface.clone());
-        let task_message = tx.clone();
+        let task_message = self.tx.clone();
         let token_result = client
             .set_auth_type(oauth2::AuthType::RequestBody)
             .set_token_uri(self.token_endpoint.to_owned())
@@ -334,15 +332,11 @@ where
 
     let result = device_auth_response.clone();
     let token_file_clone = token_file.clone();
-    let task_channel = tx.clone();
     // Start polling at the background
+    let inner_tx = tx.clone();
     let handle = tokio::spawn(async move {
         let result = device_code_flow
-            .poll_access_token(
-                device_auth_response,
-                interface.clone(),
-                task_channel.clone(),
-            )
+            .poll_access_token(device_auth_response, interface.clone())
             .await;
 
         let value = match result {
@@ -364,13 +358,13 @@ where
         log::info!("Sending of event . . . .");
         // Sending to event result to the subscribers
         // Task is done, removing from the list
-        task_channel
+        inner_tx
             .send(TaskMessage::SendEvent("token.ready".into(), value))
             .unwrap_or_else(|e| {
                 log::error!("{:?}", e);
             });
         // Task is done, removing from the list
-        task_channel
+        inner_tx
             .send(TaskMessage::PollingDone(token_file_clone))
             .unwrap_or_else(|e| {
                 log::error!("{:?}", e);

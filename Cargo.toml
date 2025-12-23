@@ -18,7 +18,7 @@ ipc-broker = "1.1"
 json-result = "0.1.1"
 log = "0.4"
 oauth2 = "5.0"
-openidconnect = "4.0"
+openidconnect = { version = "4.0", default-features = false, features = ["accept-rfc3339-timestamps"] }
 reqwest = "0.12"
 serde = "1.0"
 serde_derive = "1.0"

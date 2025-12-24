@@ -19,7 +19,7 @@ use task_manager::TaskManager;
 use tokio::sync::mpsc::unbounded_channel;
 
 use crate::{
-    http_client::{curl::Curl, HttpClient},
+    http_client::{HttpClient, curl::Curl},
     task_manager::TaskMessage,
 };
 

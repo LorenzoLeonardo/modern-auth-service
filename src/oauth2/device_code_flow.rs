@@ -9,13 +9,13 @@ use async_trait::async_trait;
 use directories::UserDirs;
 use json_result::r#struct::JsonResult;
 use oauth2::{
+    AsyncHttpClient, Client, ClientId, ClientSecret, DeviceAuthorizationUrl, EndpointNotSet,
+    ExtraTokenFields, HttpResponse, Scope, StandardDeviceAuthorizationResponse,
+    StandardRevocableToken, StandardTokenResponse, TokenUrl,
     basic::{
         BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
         BasicTokenType,
     },
-    AsyncHttpClient, Client, ClientId, ClientSecret, DeviceAuthorizationUrl, EndpointNotSet,
-    ExtraTokenFields, HttpResponse, Scope, StandardDeviceAuthorizationResponse,
-    StandardRevocableToken, StandardTokenResponse, TokenUrl,
 };
 
 use openidconnect::core::CoreIdToken;
@@ -200,7 +200,9 @@ impl DeviceCodeFlowTrait for DeviceCodeFlow {
                     }
                 }
                 None => {
-                    log::info!("Access token has expired but there is no refresh token, please login again.");
+                    log::info!(
+                        "Access token has expired but there is no refresh token, please login again."
+                    );
                     token_keeper.delete(file_name)?;
                     Err(OAuth2Error::new(
                         ErrorCodes::NoToken,
@@ -313,11 +315,11 @@ where
 
     let (oneshot_tx, oneshot_rx) = oneshot::channel();
     tx.send(TaskMessage::Check(token_file.clone(), oneshot_tx))?;
-    if let Ok(existing) = oneshot_rx.await {
-        if existing {
-            tx.send(TaskMessage::Abort(token_file.clone()))?;
-            log::info!("task aborted ...");
-        }
+    if let Ok(existing) = oneshot_rx.await
+        && existing
+    {
+        tx.send(TaskMessage::Abort(token_file.clone()))?;
+        log::info!("task aborted ...");
     }
 
     let device_auth_response = device_code_flow

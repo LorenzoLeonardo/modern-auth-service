@@ -1,4 +1,4 @@
-use oauth2::{url::Url, AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, Scope, TokenUrl};
+use oauth2::{AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl, Scope, TokenUrl, url::Url};
 use openidconnect::core::CoreIdToken;
 use serde::{Deserialize, Serialize};
 

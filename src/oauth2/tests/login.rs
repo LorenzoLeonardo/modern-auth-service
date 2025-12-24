@@ -1,12 +1,13 @@
 use std::time::Duration;
 
+use crate::interface::mock::Mock;
+use crate::logger;
 use crate::oauth2::device_code_flow::login;
 use crate::oauth2::provider::InputParameters;
 use crate::task_manager::{TaskManager, TaskMessage};
-use crate::{interface::mock::Mock, setup_logger};
 
 use http::{HeaderMap, HeaderValue, Response, StatusCode};
-use oauth2::{url::Url, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl};
+use oauth2::{AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, TokenUrl, url::Url};
 use tokio::sync::mpsc::unbounded_channel;
 
 fn build_mock_provider() -> InputParameters {
@@ -35,7 +36,7 @@ fn build_mock_provider() -> InputParameters {
 
 #[tokio::test]
 async fn test_login() {
-    setup_logger();
+    logger::setup_logger();
     let (tx, rx) = unbounded_channel();
     let interface = Mock::new();
     let mut inner = interface.clone();

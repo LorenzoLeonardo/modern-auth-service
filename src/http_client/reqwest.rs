@@ -1,4 +1,4 @@
-use oauth2::{http::Response, HttpRequest, HttpResponse};
+use oauth2::{HttpRequest, HttpResponse, http::Response};
 use reqwest::Client;
 
 use crate::oauth2::error::OAuth2Error;

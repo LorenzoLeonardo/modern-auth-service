@@ -9,7 +9,7 @@ use json_result::r#enum::JsonResult;
 use log::SetLoggerError;
 // 3rd party crates
 use oauth2::{
-    url, ConfigurationError, ErrorResponseType, RequestTokenError, StandardErrorResponse,
+    ConfigurationError, ErrorResponseType, RequestTokenError, StandardErrorResponse, url,
 };
 use openidconnect::{ClaimsVerificationError, DiscoveryError};
 use serde::{Deserialize, Serialize};
